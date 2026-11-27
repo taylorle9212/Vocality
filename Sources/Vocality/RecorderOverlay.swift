@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 /// The recorder: a black glass "island" at the bottom of the screen.
-/// It appears as a small capsule, springs open while you talk, and folds back up before it goes away.
+/// It glides up from the bottom of the screen and glides back down when done.
 /// Click-through and non-activating, so it never takes focus from the app being typed into.
 @MainActor
 final class RecorderOverlay {
@@ -18,8 +18,6 @@ final class RecorderOverlay {
     final class Model: ObservableObject {
         @Published var mode: Mode = .recording
         @Published var visible = false
-        /// Collapsed is the small resting capsule; expanded shows the full island.
-        @Published var expanded = false
         @Published var autoSend = true
         @Published var levels: [CGFloat] = Array(repeating: 0, count: 22)
         /// 0...1, fills while you speak: the "charge" of the send arrow.
@@ -82,15 +80,13 @@ final class RecorderOverlay {
     }
 
     /// Folds the island back to a capsule, then fades it out.
+    /// Glides the island down and out.
     func hide() {
         task?.cancel()
-        model.expanded = false
+        model.visible = false
         let panel = self.panel
         task = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(260))
-            guard !Task.isCancelled else { return }
-            self.model.visible = false
-            try? await Task.sleep(for: .milliseconds(260))
+            try? await Task.sleep(for: .milliseconds(450))
             guard !Task.isCancelled, !self.model.visible else { return }
             panel?.orderOut(nil)
         }
@@ -109,18 +105,7 @@ final class RecorderOverlay {
             }
             panel.orderFrontRegardless()
         }
-        if appearing {
-            model.expanded = false
-            model.visible = true
-            // Let the capsule land first, then open it.
-            task = Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(70))
-                guard !Task.isCancelled else { return }
-                self.model.expanded = true
-            }
-        } else {
-            model.expanded = true
-        }
+        if appearing { model.visible = true }
     }
 
     private func makePanel() -> NSPanel {
@@ -156,8 +141,8 @@ private enum Island {
     static let send = Color(hex: 0x7C3AED)
 }
 
-/// Bouncy, like Dynamic Island.
-private let islandSpring = Animation.spring(response: 0.5, dampingFraction: 0.82)
+/// Smooth, unbouncy motion for the island gliding in and out.
+private let glide = Animation.smooth(duration: 0.4)
 private let contentSpring = Animation.spring(response: 0.36, dampingFraction: 0.86)
 
 private struct OverlayView: View {
@@ -168,15 +153,12 @@ private struct OverlayView: View {
         ZStack(alignment: .bottom) {
             if model.visible {
                 IslandView(model: model)
-                    .transition(
-                        reduceMotion
-                            ? .opacity
-                            : .scale(scale: 0.4, anchor: .bottom).combined(with: .opacity))
+                    .transition(reduceMotion ? .opacity : .offset(y: 44).combined(with: .opacity))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         .padding(.bottom, 10)
-        .animation(reduceMotion ? .easeOut(duration: 0.15) : islandSpring, value: model.visible)
+        .animation(reduceMotion ? .easeOut(duration: 0.15) : glide, value: model.visible)
     }
 }
 
@@ -185,41 +167,27 @@ private struct IslandView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        let open = model.expanded
-        HStack(spacing: open ? 12 : 0) {
+        HStack(spacing: 12) {
             LaunchPad(model: model)
-                .scaleEffect(open ? 1 : 0.5)
-                .opacity(open ? 1 : 0)
             content
                 .shadow(color: .black.opacity(0.45), radius: 3, y: 1)
                 .fixedSize()
-                .transition(.blurReplace.combined(with: .opacity))
+                .transition(.opacity)
                 .id(contentID)
-                .frame(width: open ? nil : 0, alignment: .leading)
-                .opacity(open ? 1 : 0)
-                .clipped()
         }
-        .padding(.leading, open ? 8 : 0)
-        .padding(.trailing, open ? 18 : 0)
-        .frame(minWidth: open ? nil : 72, minHeight: open ? 52 : 28, maxHeight: open ? 52 : 28)
+        .padding(.leading, 8)
+        .padding(.trailing, 18)
+        .frame(height: 52)
         .glassSurface(Capsule(style: .continuous), tint: Island.tint, clear: true)
         .overlay(Capsule(style: .continuous).strokeBorder(Island.edge, lineWidth: 1))
-        .overlay(IridescentRim(shape: Capsule(style: .continuous), lineWidth: 1, opacity: open ? 0.45 : 0.2, animated: open && !model.settled))
-        .shadow(color: .black.opacity(0.28), radius: open ? 18 : 8, y: open ? 10 : 4)
-        // A slight swell with your voice while recording.
-        .scaleEffect(breathe)
+        .overlay(IridescentRim(shape: Capsule(style: .continuous), lineWidth: 1, opacity: 0.45, animated: !model.settled))
+        .shadow(color: .black.opacity(0.28), radius: 18, y: 10)
         .glassGroup(spacing: 12)
-        .animation(reduceMotion ? .easeOut(duration: 0.2) : islandSpring, value: model.expanded)
-        .animation(contentSpring, value: contentID)
-        .animation(.easeOut(duration: 0.12), value: model.lastLevel)
+        // Width eases as the content changes; no bounce.
+        .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: contentID)
         .environment(\.colorScheme, .dark)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityText)
-    }
-
-    private var breathe: CGFloat {
-        guard !reduceMotion, model.expanded, model.mode == .recording else { return 1 }
-        return 1 + min(0.025, model.lastLevel * 0.03)
     }
 
     private var contentID: String {
@@ -467,16 +435,15 @@ private struct DotWave: View {
 // MARK: - Snapshots
 
 extension RecorderOverlay {
-    /// A settled island for offscreen rendering. `expanded: false` draws the resting capsule.
+    /// A settled island for offscreen rendering.
     static func snapshotView(
-        _ mode: Mode, autoSend: Bool = true, levels: [CGFloat] = [], charge: CGFloat = 0, expanded: Bool = true
+        _ mode: Mode, autoSend: Bool = true, levels: [CGFloat] = [], charge: CGFloat = 0
     ) -> some View {
         let model = Model()
         model.mode = mode
         model.autoSend = autoSend
         model.settled = true
         model.visible = true
-        model.expanded = expanded
         if !levels.isEmpty { model.levels = levels }
         model.charge = charge
         return IslandView(model: model).padding(20)

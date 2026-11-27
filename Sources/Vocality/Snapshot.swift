@@ -22,7 +22,6 @@ enum Snapshot {
             ("overlay-recording", AnyView(RecorderOverlay.snapshotView(.recording, levels: wave, charge: 0.65))),
             ("overlay-recording-noautosend", AnyView(RecorderOverlay.snapshotView(.recording, autoSend: false, levels: wave))),
             ("overlay-transcribing", AnyView(RecorderOverlay.snapshotView(.transcribing))),
-            ("overlay-resting", AnyView(RecorderOverlay.snapshotView(.recording, expanded: false))),
             ("overlay-sent", AnyView(RecorderOverlay.snapshotView(.sent("⏎", app: "T3 Code", iconPath: sampleAppIcon)))),
             ("overlay-pasted", AnyView(RecorderOverlay.snapshotView(.pasted, autoSend: false))),
             ("overlay-error", AnyView(RecorderOverlay.snapshotView(.error("No microphone input is available.")))),
