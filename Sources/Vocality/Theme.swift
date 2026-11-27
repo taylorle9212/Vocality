@@ -5,6 +5,8 @@ import SwiftUI
 enum Theme {
     static let background = Color(light: 0xF7F5FF, dark: 0x07050D)
     static let card = Color(light: 0xFFFFFF, dark: 0x0F0B18, lightAlpha: 0.74, darkAlpha: 0.72)
+    /// Light tint for glass surfaces, so the glass stays see-through.
+    static let glassTint = Color(light: 0xFFFFFF, dark: 0x0F0B18, lightAlpha: 0.1, darkAlpha: 0.16)
     static let line = Color(light: 0xE4DCFB, dark: 0x251C3A)
     static let ink = Color(light: 0x1A1030, dark: 0xEEEAF8)
     static let slate = Color(light: 0x5B5274, dark: 0xA79FBF)
@@ -32,13 +34,13 @@ struct WindowBackdrop: View {
         ZStack {
             LinearGradient(
                 colors: [
-                    Color(light: 0xEFE7FF, dark: 0x0B0716, lightAlpha: 0.82, darkAlpha: 0.9),
-                    Color(light: 0xF7F5FF, dark: 0x05040A, lightAlpha: 0.82, darkAlpha: 0.92),
+                    Color(light: 0xEFE7FF, dark: 0x0B0716, lightAlpha: 0.22, darkAlpha: 0.3),
+                    Color(light: 0xF7F5FF, dark: 0x05040A, lightAlpha: 0.18, darkAlpha: 0.34),
                 ],
                 startPoint: .top,
                 endPoint: .bottom)
             RadialGradient(
-                colors: [Color(light: 0xA78BFA, dark: 0x7C3AED, lightAlpha: 0.32, darkAlpha: 0.34), .clear],
+                colors: [Color(light: 0xA78BFA, dark: 0x7C3AED, lightAlpha: 0.24, darkAlpha: 0.28), .clear],
                 center: .topLeading, startRadius: 0, endRadius: 520)
             RadialGradient(
                 colors: [Color(light: 0x818CF8, dark: 0x4F46E5, lightAlpha: 0.2, darkAlpha: 0.22), .clear],

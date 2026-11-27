@@ -151,7 +151,7 @@ private struct Card<Content: View>: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassSurface(RoundedRectangle(cornerRadius: 20, style: .continuous), tint: Theme.card)
+        .glassSurface(RoundedRectangle(cornerRadius: 20, style: .continuous), tint: Theme.glassTint)
         .overlay(IridescentRim(shape: RoundedRectangle(cornerRadius: 20, style: .continuous), lineWidth: 1, opacity: 0.3))
     }
 }
