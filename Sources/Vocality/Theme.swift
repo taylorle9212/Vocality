@@ -1,50 +1,51 @@
 import AppKit
 import SwiftUI
 
-/// Tech-purple palette that follows the system light/dark appearance.
+/// White and graphite with a thermal-gradient accent. Follows the system light/dark appearance.
 enum Theme {
-    static let background = Color(light: 0xF7F5FF, dark: 0x07050D)
-    static let card = Color(light: 0xFFFFFF, dark: 0x0F0B18, lightAlpha: 0.74, darkAlpha: 0.72)
-    /// Light tint for glass surfaces, so the glass stays see-through.
-    static let glassTint = Color(light: 0xFFFFFF, dark: 0x0F0B18, lightAlpha: 0.38, darkAlpha: 0.42)
-    static let line = Color(light: 0xE4DCFB, dark: 0x251C3A)
-    static let ink = Color(light: 0x1A1030, dark: 0xEEEAF8)
-    static let slate = Color(light: 0x5B5274, dark: 0xA79FBF)
-    static let chip = Color(light: 0xEEE8FF, dark: 0x22163D)
-    static let chipText = Color(light: 0x4C1D95, dark: 0xD8CCFF)
+    static let background = Color(light: 0xFAFAFA, dark: 0x0A0A0B)
+    static let card = Color(light: 0xFFFFFF, dark: 0x141416, lightAlpha: 0.82, darkAlpha: 0.78)
+    /// Tint for glass cards over the thermal backdrop: white in light mode, graphite in dark.
+    static let glassTint = Color(light: 0xFFFFFF, dark: 0x111113, lightAlpha: 0.62, darkAlpha: 0.55)
+    static let line = Color(light: 0xE7E7EA, dark: 0x2A2A2F)
+    static let ink = Color(light: 0x111113, dark: 0xF4F4F5)
+    static let slate = Color(light: 0x5F5F68, dark: 0xA1A1AA)
+    static let chip = Color(light: 0xF2F2F4, dark: 0x232327)
+    static let chipText = Color(light: 0x27272A, dark: 0xE4E4E7)
 
-    static let accent300 = Color(light: 0xC4B5FD, dark: 0x5B3FA6)
-    static let accent500 = Color(light: 0x8B5CF6, dark: 0xA78BFA)
-    static let accent600 = Color(light: 0x7C3AED, dark: 0xC4B5FD)
-    /// Buttons and switches. White text on it passes 4.5:1 in both appearances.
-    static let action = Color(light: 0x6D28D9, dark: 0x7C3AED)
+    static let accent300 = Color(light: 0xD4D4D8, dark: 0x52525B)
+    /// Warm thermal accent for small highlights (status dot, checks).
+    static let accent500 = Color(light: 0xE0582A, dark: 0xF47A3D)
+    static let accent600 = Color(light: 0xD04A22, dark: 0xFB923C)
+    /// Buttons and switches: graphite, with white text at more than 7:1.
+    static let action = Color(light: 0x18181B, dark: 0x3F3F46)
     static let warning = Color(light: 0xC2410C, dark: 0xFB923C)
 
-    /// Violet to indigo, for the logo and brand surfaces.
-    static let iconGradient = LinearGradient(
-        colors: [Color(hex: 0xA78BFA), Color(hex: 0x7C3AED), Color(hex: 0x4F46E5)],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
+    /// The brand gradient, thermal from deep violet to amber.
+    static let thermal: [Color] = [
+        Color(hex: 0x320A5E), Color(hex: 0x781C6D), Color(hex: 0xBC3754), Color(hex: 0xED6925), Color(hex: 0xFBB61A),
+    ]
+    static let iconGradient = LinearGradient(colors: thermal, startPoint: .bottomLeading, endPoint: .topTrailing)
 }
 
-/// The window backdrop: a soft purple gradient over the translucent window material.
+/// The window backdrop: a soft thermal mesh gradient under the white glass cards.
 struct WindowBackdrop: View {
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [
-                    Color(light: 0xEFE7FF, dark: 0x0B0716, lightAlpha: 0.55, darkAlpha: 0.62),
-                    Color(light: 0xF7F5FF, dark: 0x05040A, lightAlpha: 0.5, darkAlpha: 0.66),
+            MeshGradient(
+                width: 3, height: 3,
+                points: [
+                    [0, 0], [0.5, 0], [1, 0],
+                    [0, 0.5], [0.55, 0.45], [1, 0.5],
+                    [0, 1], [0.5, 1], [1, 1],
                 ],
-                startPoint: .top,
-                endPoint: .bottom)
-            RadialGradient(
-                colors: [Color(light: 0xA78BFA, dark: 0x7C3AED, lightAlpha: 0.24, darkAlpha: 0.28), .clear],
-                center: .topLeading, startRadius: 0, endRadius: 520)
-            RadialGradient(
-                colors: [Color(light: 0x818CF8, dark: 0x4F46E5, lightAlpha: 0.2, darkAlpha: 0.22), .clear],
-                center: .bottomTrailing, startRadius: 0, endRadius: 480)
+                colors: [
+                    Color(light: 0xFFD27A, dark: 0x7A3A10), Color(light: 0xFFB088, dark: 0x6E2418), Color(light: 0xF5A3B5, dark: 0x4A1236),
+                    Color(light: 0xFFA36B, dark: 0x6A2A12), Color(light: 0xF08A9A, dark: 0x4E1530), Color(light: 0xC9A3E8, dark: 0x2A0E45),
+                    Color(light: 0xF48FA8, dark: 0x45122E), Color(light: 0xC6A0E6, dark: 0x2A0C44), Color(light: 0xA99BE0, dark: 0x170733),
+                ])
+            // Wash so the gradient stays soft behind text.
+            Color(light: 0xFFFFFF, dark: 0x050506, lightAlpha: 0.42, darkAlpha: 0.38)
         }
         .ignoresSafeArea()
     }
@@ -75,28 +76,32 @@ extension NSColor {
     }
 }
 
-/// The app mark: a text cursor with sound arcs.
+/// The app mark: a white tile with a thermal text cursor and sound arcs, matching the app icon.
 struct LogoMark: View {
     var size: CGFloat = 28
 
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: size * 0.225, style: .continuous)
-                .fill(Theme.iconGradient)
+                .fill(.white)
+                .overlay(RoundedRectangle(cornerRadius: size * 0.225, style: .continuous).stroke(.black.opacity(0.08), lineWidth: 1))
+                .shadow(color: .black.opacity(0.12), radius: 3, y: 1)
             Canvas { ctx, canvas in
                 let s = canvas.width / 200
                 func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: x * s, y: y * s) }
+                let heat = GraphicsContext.Shading.linearGradient(
+                    Gradient(colors: Theme.thermal), startPoint: p(40, 160), endPoint: p(160, 40))
 
                 var caret = Path()
                 caret.move(to: p(86, 56)); caret.addLine(to: p(114, 56))
                 caret.move(to: p(100, 56)); caret.addLine(to: p(100, 144))
                 caret.move(to: p(86, 144)); caret.addLine(to: p(114, 144))
-                ctx.stroke(caret, with: .color(.white), style: StrokeStyle(lineWidth: 13 * s, lineCap: .round))
+                ctx.stroke(caret, with: heat, style: StrokeStyle(lineWidth: 13 * s, lineCap: .round))
 
                 var arcs = Path()
                 arcs.move(to: p(62, 78)); arcs.addQuadCurve(to: p(62, 122), control: p(50, 100))
                 arcs.move(to: p(138, 78)); arcs.addQuadCurve(to: p(138, 122), control: p(150, 100))
-                ctx.stroke(arcs, with: .color(.white.opacity(0.9)), style: StrokeStyle(lineWidth: 10 * s, lineCap: .round))
+                ctx.stroke(arcs, with: heat, style: StrokeStyle(lineWidth: 10 * s, lineCap: .round))
             }
         }
         .frame(width: size, height: size)

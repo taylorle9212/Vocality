@@ -30,7 +30,7 @@ enum Snapshot {
         for (scheme, appearanceName) in [("light", NSAppearance.Name.aqua), ("dark", .darkAqua)] {
             let colorScheme: ColorScheme = scheme == "dark" ? .dark : .light
             NSAppearance(named: appearanceName)!.performAsCurrentDrawingAppearance {
-                let backdrop = scheme == "dark" ? Color(hex: 0x07050D) : Color(hex: 0xF7F5FF)
+                let backdrop = scheme == "dark" ? Color(hex: 0x0A0A0B) : Color(hex: 0xFAFAFA)
                 let window = MainView.Content()
                     .environmentObject(model)
                     .frame(width: 560)
