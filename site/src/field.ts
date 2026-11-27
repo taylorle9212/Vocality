@@ -30,6 +30,8 @@ export interface FieldConfig {
 export interface DotField {
   /** Pointer in CSS px relative to the canvas, or null when outside. */
   setPointer(point: [number, number] | null): void;
+  /** Page scroll velocity (positive scrolling down); scatters the dots. */
+  setScroll?(velocity: number): void;
   setDark(dark: boolean): void;
   /** Advances and draws one frame. */
   tick(env: Envelope, dt: number, time: number): void;

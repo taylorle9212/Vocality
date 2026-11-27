@@ -37,6 +37,7 @@ export async function createGpuField(gpu: Gpu, canvas: HTMLCanvasElement, cfg: F
 
   let pointer: [number, number] = [0, 0];
   let pointerActive = 0;
+  let scroll = 0;
   let dark = 0;
   let active = true;
   let isStill = false;
@@ -74,7 +75,7 @@ export async function createGpuField(gpu: Gpu, canvas: HTMLCanvasElement, cfg: F
         send: 0,
         pointerActive: 0,
         count: cfg.count,
-        pad1: 0,
+        scroll: 0,
         pad2: 0,
       },
     },
@@ -110,6 +111,7 @@ export async function createGpuField(gpu: Gpu, canvas: HTMLCanvasElement, cfg: F
         send: env.send,
         pointer,
         pointerActive,
+        scroll,
       },
     });
   };
@@ -123,6 +125,9 @@ export async function createGpuField(gpu: Gpu, canvas: HTMLCanvasElement, cfg: F
     },
     setActive(next) {
       active = next;
+    },
+    setScroll(velocity) {
+      scroll = velocity;
     },
     setPointer(point) {
       if (!point) {

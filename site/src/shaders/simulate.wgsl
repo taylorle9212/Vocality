@@ -32,7 +32,8 @@ struct Params {
   baseVisible: f32,
   count: u32,
   lineX: f32,
-  pad1: f32,
+  // Smoothed page scroll velocity; positive while scrolling down.
+  scroll: f32,
   pad2: f32,
 }
 
@@ -99,6 +100,13 @@ fn cs_main(@builtin(global_invocation_id) id: vec3u) {
     let pd = length(away);
     let falloff = 1.0 - smoothstep(0.0, params.pointerRadius, pd);
     accel += normalize(away + vec2f(1e-5)) * falloff * falloff * 3.5;
+  }
+
+  // Scroll: dots drift with the page and scatter, then the flow settles them back.
+  let sv = params.scroll;
+  if (abs(sv) > 0.001) {
+    let jitter = hash2(vec2f(f32(i) * 1.7, floor(params.time * 5.0))) * 2.0 - 1.0;
+    accel += vec2f(jitter.x * 1.8, 1.0 + jitter.y * 0.9) * sv * (0.5 + d.seed.z);
   }
 
   d.vel += accel * dt;

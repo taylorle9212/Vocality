@@ -24,7 +24,7 @@ const heroConfig: FieldConfig = {
       sendTarget: [aspect * 0.82, -0.25],
       pointerRadius: 0.28,
       flowScale: 1.4,
-      baseVisible: 0.08,
+      baseVisible: 0.6, // most dots stay on screen at all times
     };
   },
 };
@@ -61,12 +61,89 @@ const returnKey = $("return-key");
 const ringProgress = $<SVGCircleElement & HTMLElement>("ring-progress");
 const rendererNote = $("renderer-note");
 
-const timeline = createTimeline({ listen: 5.5, refine: 1.6, send: 1.0, rest: 1.8, seed: 1 });
 const heroTimeline = createTimeline({ listen: 6.5, refine: 1.8, send: 1.2, rest: 1.5, seed: 2 });
+/** The hero never condenses or sends: the simulated voice only modulates the dots' energy. */
+function ambient(time: number): Envelope {
+  const voice = heroTimeline.sample(time).level;
+  return { level: 0.22 + 0.6 * voice, refine: 0, send: 0, phase: "listening", progress: 0 };
+}
+
+/** Smoothed page scroll velocity, roughly -3...3. */
+let scrollVelocity = 0;
+let lastScrollY = window.scrollY;
+function updateScroll(dt: number): number {
+  const y = window.scrollY;
+  const instant = (y - lastScrollY) / Math.max(dt, 1 / 240) / 900;
+  lastScrollY = y;
+  scrollVelocity += (Math.max(-3, Math.min(3, instant)) - scrollVelocity) * Math.min(1, dt * 10);
+  return scrollVelocity;
+}
+
+const track = document.querySelector<HTMLElement>(".scrolly-track");
+const captions = Array.from(document.querySelectorAll<HTMLElement>(".captions li"));
+const root = document.documentElement;
+const smoothstep = (a: number, b: number, x: number) => {
+  const k = Math.min(1, Math.max(0, (x - a) / (b - a)));
+  return k * k * (3 - 2 * k);
+};
+
+/** 0...1 progress through the pinned story; also sets the CSS vars that dim the backdrop and scale the window in. */
+function storyProgress(): number {
+  if (!track) return 0;
+  const r = track.getBoundingClientRect();
+  const span = Math.max(1, r.height - window.innerHeight);
+  const p = Math.min(1, Math.max(0, -r.top / span));
+  const pinned = r.top <= 0 && r.bottom >= window.innerHeight ? 1 : 0;
+  root.style.setProperty("--pin", String(pinned * smoothstep(0, 0.08, p) * (1 - smoothstep(0.92, 1, p))));
+  root.style.setProperty("--enter", String(smoothstep(-0.6, 0, -r.top / window.innerHeight)));
+  return p;
+}
+
+/** Maps scroll progress to the dictation: listening (louder as you scroll), refining, sending, sent. */
+function storyEnvelope(time: number): Envelope {
+  const p = storyProgress();
+  let env: Envelope;
+  if (p < 0.5) {
+    const k = p / 0.5;
+    const syllables = 0.55 + 0.45 * Math.abs(Math.sin(time * 6.3) * Math.sin(time * 2.1 + 1));
+    env = { level: (0.1 + 0.9 * k) * syllables, refine: 0, send: 0, phase: "listening", progress: k };
+  } else if (p < 0.72) {
+    const k = (p - 0.5) / 0.22;
+    env = { level: 0.15 * (1 - k), refine: smoothstep(0, 0.6, k), send: 0, phase: "refining", progress: k };
+  } else if (p < 0.86) {
+    const k = (p - 0.72) / 0.14;
+    env = { level: 0, refine: 1, send: k, phase: "sending", progress: k };
+  } else {
+    env = { level: 0, refine: 1, send: 1, phase: "sent", progress: (p - 0.86) / 0.14 };
+  }
+  const step = env.phase === "sending" ? "refining" : env.phase;
+  for (const li of captions) li.classList.toggle("on", li.dataset.step === step);
+  return env;
+}
+
+/** Slides sections in as they enter the viewport. */
+function watchReveals() {
+  const items = Array.from(document.querySelectorAll<HTMLElement>(".reveal"));
+  items.forEach((el) => {
+    const siblings = el.parentElement ? Array.from(el.parentElement.children).filter((c) => c.classList.contains("reveal")) : [];
+    el.style.setProperty("--i", String(Math.max(0, siblings.indexOf(el))));
+  });
+  const io = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) if (e.isIntersecting) {
+        e.target.classList.add("in");
+        io.unobserve(e.target);
+      }
+    },
+    { threshold: 0.15, rootMargin: "0px 0px -8% 0px" },
+  );
+  items.forEach((el) => io.observe(el));
+}
+
 const PROMPT = "Add a dark mode toggle to the settings page, then run the tests.";
 const RING = 106.8;
 
-/** Updates the island's DOM parts (ring, status, typed prompt) for a timeline sample. */
+/** Updates the island's DOM parts (ring, status, typed prompt) for a story sample. */
 function updateDemo(env: Envelope) {
   if (island) island.dataset.phase = env.phase;
   if (ringProgress) {
@@ -119,8 +196,9 @@ async function createFields(): Promise<{ hero?: DotField; island?: DotField; gpu
           frameLoop(gpu, (f) => {
             const t = time.time;
             const dt = Math.min(1 / 20, time.deltaTime || 1 / 60);
-            const heroEnv = heroTimeline.sample(t);
-            const env = timeline.sample(t);
+            const heroEnv = ambient(t);
+            hero?.setScroll?.(updateScroll(dt));
+            const env = storyEnvelope(t);
             updateDemo(env);
             const fields: [GpuField | undefined, Envelope][] = [
               [hero, heroEnv],
@@ -147,9 +225,10 @@ async function createFields(): Promise<{ hero?: DotField; island?: DotField; gpu
         const dt = Math.min(1 / 20, (now - last) / 1000);
         last = now;
         const t = now / 1000;
-        const env = timeline.sample(t);
+        const env = storyEnvelope(t);
         updateDemo(env);
-        hero?.tick(heroTimeline.sample(t), dt, t);
+        hero?.setScroll?.(updateScroll(dt));
+        hero?.tick(ambient(t), dt, t);
         isl?.tick(env, dt, t);
         loop(dt, t);
         requestAnimationFrame(step);
@@ -160,6 +239,7 @@ async function createFields(): Promise<{ hero?: DotField; island?: DotField; gpu
 }
 
 async function main() {
+  watchReveals();
   const { hero, island: islandField, gpu, start } = await createFields();
   if (rendererNote) {
     rendererNote.textContent = gpu
@@ -174,10 +254,7 @@ async function main() {
   applyDark();
   darkQuery.addEventListener("change", applyDark);
 
-  if (heroCanvas && hero) {
-    watchVisibility(heroCanvas, hero);
-    watchPointer(heroCanvas, hero);
-  }
+  if (heroCanvas && hero) watchPointer(heroCanvas, hero);
   if (islandCanvas && islandField) watchVisibility(islandCanvas, islandField);
 
   if (reducedMotion.matches) {
@@ -186,6 +263,7 @@ async function main() {
     hero?.still(listening);
     islandField?.still(listening);
     updateDemo({ ...listening, phase: "sent", progress: 1 });
+    for (const li of captions) li.classList.add("on");
     return;
   }
   start(() => {});
