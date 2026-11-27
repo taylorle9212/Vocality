@@ -44,7 +44,7 @@ struct VocalityApp: App {
         Window("Vocality", id: "main") {
             MainView()
                 .environmentObject(app)
-                .containerBackground(Color.clear, for: .window)
+                .containerBackground(.thinMaterial, for: .window)
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentMinSize)

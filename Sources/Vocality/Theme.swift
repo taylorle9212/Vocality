@@ -6,7 +6,7 @@ enum Theme {
     static let background = Color(light: 0xF7F5FF, dark: 0x07050D)
     static let card = Color(light: 0xFFFFFF, dark: 0x0F0B18, lightAlpha: 0.74, darkAlpha: 0.72)
     /// Light tint for glass surfaces, so the glass stays see-through.
-    static let glassTint = Color(light: 0xFFFFFF, dark: 0x0F0B18, lightAlpha: 0.1, darkAlpha: 0.16)
+    static let glassTint = Color(light: 0xFFFFFF, dark: 0x0F0B18, lightAlpha: 0.38, darkAlpha: 0.42)
     static let line = Color(light: 0xE4DCFB, dark: 0x251C3A)
     static let ink = Color(light: 0x1A1030, dark: 0xEEEAF8)
     static let slate = Color(light: 0x5B5274, dark: 0xA79FBF)
@@ -34,8 +34,8 @@ struct WindowBackdrop: View {
         ZStack {
             LinearGradient(
                 colors: [
-                    Color(light: 0xEFE7FF, dark: 0x0B0716, lightAlpha: 0.22, darkAlpha: 0.3),
-                    Color(light: 0xF7F5FF, dark: 0x05040A, lightAlpha: 0.18, darkAlpha: 0.34),
+                    Color(light: 0xEFE7FF, dark: 0x0B0716, lightAlpha: 0.55, darkAlpha: 0.62),
+                    Color(light: 0xF7F5FF, dark: 0x05040A, lightAlpha: 0.5, darkAlpha: 0.66),
                 ],
                 startPoint: .top,
                 endPoint: .bottom)
