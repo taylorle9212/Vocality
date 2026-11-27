@@ -182,12 +182,15 @@ private struct OverlayView: View {
 private struct IslandView: View {
     @ObservedObject var model: RecorderOverlay.Model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The send button lifts out of the island like a droplet on send, then melts back in.
+    @State private var lift: CGFloat = 0
 
     var body: some View {
         let open = model.expanded
         HStack(spacing: open ? 12 : 0) {
             LaunchPad(model: model)
-                .scaleEffect(open ? 1 : 0.5)
+                .scaleEffect(open ? (lift < 0 ? 1.08 : 1) : 0.5)
+                .offset(y: lift)
                 .opacity(open ? 1 : 0)
             content
                 .fixedSize()
@@ -202,6 +205,8 @@ private struct IslandView: View {
         .frame(minWidth: open ? nil : 72, minHeight: open ? 52 : 28, maxHeight: open ? 52 : 28)
         .glassSurface(Capsule(style: .continuous), tint: Island.tint)
         .overlay(Capsule(style: .continuous).strokeBorder(Island.edge, lineWidth: 1))
+        .overlay(IridescentRim(shape: Capsule(style: .continuous), lineWidth: 1.3, opacity: open ? 0.7 : 0.3, animated: open && !model.settled))
+        .overlay(SheenSweep(shape: Capsule(style: .continuous), trigger: sweepKey))
         .shadow(color: .black.opacity(0.28), radius: open ? 18 : 8, y: open ? 10 : 4)
         // A slight swell with your voice while recording.
         .scaleEffect(breathe)
@@ -210,8 +215,25 @@ private struct IslandView: View {
         .animation(contentSpring, value: contentID)
         .animation(.easeOut(duration: 0.12), value: model.lastLevel)
         .environment(\.colorScheme, .dark)
+        .onChange(of: contentID) { _, id in if id == "sent" { dropletLift() } }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityText)
+    }
+
+    /// Light sweeps across the glass when the island opens and when it sends.
+    private var sweepKey: Int {
+        guard model.expanded, !model.settled else { return 0 }
+        if case .sent = model.mode { return 2 }
+        return 1
+    }
+
+    private func dropletLift() {
+        guard !reduceMotion, !model.settled else { return }
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.55)) { lift = -14 }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(330))
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.62)) { lift = 0 }
+        }
     }
 
     private var breathe: CGFloat {
@@ -232,7 +254,7 @@ private struct IslandView: View {
     @ViewBuilder private var content: some View {
         switch model.mode {
         case .recording:
-            Waveform(levels: model.levels)
+            PixelField(levels: model.levels, animated: !model.settled)
         case .transcribing:
             Text("Transcribing").font(.system(size: 13, weight: .semibold)).foregroundStyle(Island.text)
         case .sent(let glyph, let app, let iconPath):
@@ -290,6 +312,7 @@ private struct LaunchPad: View {
             Color.clear
                 .glassSurface(Circle(), tint: padTint, interactive: true)
                 .animation(contentSpring, value: padTint)
+            IridescentRim(shape: Circle(), lineWidth: 1, opacity: 0.55)
 
             // Charge ring: fills as you speak, spins while transcribing.
             Circle().stroke(Color.white.opacity(0.12), lineWidth: 3)
@@ -425,23 +448,67 @@ private struct LaunchPad: View {
     }
 }
 
-private struct Waveform: View {
+/// A field of glowing pixels across the island that lights up with your voice.
+/// Drawn with Canvas and rendered on the GPU (Metal) via drawingGroup.
+private struct PixelField: View {
     let levels: [CGFloat]
+    var animated = true
+    private let columns = 30
+    private let rows = 5
 
     var body: some View {
-        HStack(alignment: .center, spacing: 3) {
-            ForEach(levels.indices, id: \.self) { i in
-                Capsule()
-                    .fill(color(for: levels[i]))
-                    .frame(width: 3, height: 4 + levels[i] * 24)
-            }
+        TimelineView(.animation(minimumInterval: 1 / 60, paused: !animated)) { context in
+            let tick = Int(context.date.timeIntervalSinceReferenceDate * 14)
+            Canvas { gc, size in draw(in: &gc, size: size, tick: animated ? tick : 7) }
         }
-        .frame(height: 30)
-        .animation(.interpolatingSpring(stiffness: 260, damping: 22), value: levels)
+        .frame(width: 186, height: 32)
+        .drawingGroup()
+        .accessibilityHidden(true)
     }
 
-    private func color(for level: CGFloat) -> Color {
-        level > 0.55 ? Island.high : (level > 0.2 ? Island.mid : Island.low)
+    private func draw(in gc: inout GraphicsContext, size: CGSize, tick: Int) {
+        let cellW = size.width / CGFloat(columns)
+        let cellH = size.height / CGFloat(rows)
+        let dot = min(cellW, cellH) * 0.66
+        let current = levels.last ?? 0
+        let middle = CGFloat(rows - 1) / 2
+
+        for c in 0..<columns {
+            // Columns run through recent audio, newest on the right.
+            let index = Int(CGFloat(c) / CGFloat(columns - 1) * CGFloat(levels.count - 1))
+            let level = levels[index]
+            for r in 0..<rows {
+                let distance = abs(CGFloat(r) - middle) / middle
+                var intensity = max(0, level * 1.5 - distance * 0.85)
+                // Sparkles: random pixels light up, more of them the louder you speak.
+                let noise = Self.noise(c, r, tick)
+                if noise < current * 0.32 { intensity = max(intensity, 0.55 + noise) }
+                intensity = min(1, intensity)
+
+                let rect = CGRect(
+                    x: CGFloat(c) * cellW + (cellW - dot) / 2,
+                    y: CGFloat(r) * cellH + (cellH - dot) / 2,
+                    width: dot, height: dot)
+                let path = Path(roundedRect: rect, cornerRadius: dot * 0.32)
+                gc.fill(path, with: .color(Self.color(intensity).opacity(0.14 + 0.86 * Double(intensity))))
+                if intensity > 0.7 {
+                    // Bloom around the brightest pixels.
+                    gc.fill(Path(ellipseIn: rect.insetBy(dx: -dot * 0.6, dy: -dot * 0.6)),
+                            with: .color(Color(hex: 0xC4B5FD).opacity(0.12 * Double(intensity))))
+                }
+            }
+        }
+    }
+
+    private static func color(_ t: CGFloat) -> Color {
+        t > 0.66 ? Color(hex: 0xE9E3FF) : (t > 0.33 ? Color(hex: 0xA78BFA) : Color(hex: 0x6D4FC4))
+    }
+
+    /// Cheap deterministic 0...1 noise per pixel and time step.
+    private static func noise(_ x: Int, _ y: Int, _ t: Int) -> CGFloat {
+        var h = UInt32(truncatingIfNeeded: x &* 374_761_393 &+ y &* 668_265_263 &+ t &* 2_147_483_647)
+        h = (h ^ (h >> 13)) &* 1_274_126_177
+        return CGFloat(h & 0xFFFF) / 65_535
     }
 }
 
