@@ -15,9 +15,9 @@ enum GlassSupport {
 extension View {
     /// A glass surface in `shape`, optionally tinted. Used for floating controls only.
     @ViewBuilder
-    func glassSurface<S: Shape>(_ shape: S, tint: Color? = nil, interactive: Bool = false) -> some View {
+    func glassSurface<S: Shape>(_ shape: S, tint: Color? = nil, interactive: Bool = false, clear: Bool = false) -> some View {
         if #available(macOS 26, *), GlassSupport.isAvailable {
-            self.glassEffect(Glass.regular.tint(tint).interactive(interactive), in: shape)
+            self.glassEffect((clear ? Glass.clear : Glass.regular).tint(tint).interactive(interactive), in: shape)
         } else {
             self.background(
                 shape.fill(.regularMaterial)
@@ -80,36 +80,5 @@ struct IridescentRim<S: InsettableShape>: View {
             .opacity(opacity)
             .blendMode(.plusLighter)
             .allowsHitTesting(false)
-    }
-}
-
-/// A bright band of light that sweeps across a surface whenever `trigger` changes.
-struct SheenSweep<S: Shape, T: Equatable>: View {
-    let shape: S
-    let trigger: T
-    @State private var phase: CGFloat = -1
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        GeometryReader { geo in
-            LinearGradient(
-                colors: [.clear, .white.opacity(0.28), .white.opacity(0.06), .clear],
-                startPoint: .leading,
-                endPoint: .trailing)
-                .frame(width: geo.size.width * 0.45)
-                .rotationEffect(.degrees(18))
-                .offset(x: phase * geo.size.width * 1.2)
-        }
-        .mask(shape)
-        .blendMode(.plusLighter)
-        .allowsHitTesting(false)
-        .onChange(of: trigger) { _, _ in sweep() }
-        .onAppear { sweep() }
-    }
-
-    private func sweep() {
-        guard !reduceMotion else { return }
-        phase = -0.6
-        withAnimation(.easeInOut(duration: 0.9)) { phase = 1.1 }
     }
 }

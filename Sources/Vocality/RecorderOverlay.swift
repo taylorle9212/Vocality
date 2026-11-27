@@ -145,7 +145,8 @@ final class RecorderOverlay {
 
 /// Island colors are fixed: the island is black in both light and dark mode.
 private enum Island {
-    static let tint = Color.black.opacity(0.84)
+    /// A whisper of tint: the island is clear glass you can see through.
+    static let tint = Color.black.opacity(0.12)
     static let text = Color.white
     static let secondary = Color.white.opacity(0.6)
     static let edge = Color.white.opacity(0.09)
@@ -156,7 +157,7 @@ private enum Island {
 }
 
 /// Bouncy, like Dynamic Island.
-private let islandSpring = Animation.spring(response: 0.48, dampingFraction: 0.7)
+private let islandSpring = Animation.spring(response: 0.5, dampingFraction: 0.82)
 private let contentSpring = Animation.spring(response: 0.36, dampingFraction: 0.86)
 
 private struct OverlayView: View {
@@ -182,17 +183,15 @@ private struct OverlayView: View {
 private struct IslandView: View {
     @ObservedObject var model: RecorderOverlay.Model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// The send button lifts out of the island like a droplet on send, then melts back in.
-    @State private var lift: CGFloat = 0
 
     var body: some View {
         let open = model.expanded
         HStack(spacing: open ? 12 : 0) {
             LaunchPad(model: model)
-                .scaleEffect(open ? (lift < 0 ? 1.08 : 1) : 0.5)
-                .offset(y: lift)
+                .scaleEffect(open ? 1 : 0.5)
                 .opacity(open ? 1 : 0)
             content
+                .shadow(color: .black.opacity(0.45), radius: 3, y: 1)
                 .fixedSize()
                 .transition(.blurReplace.combined(with: .opacity))
                 .id(contentID)
@@ -203,10 +202,9 @@ private struct IslandView: View {
         .padding(.leading, open ? 8 : 0)
         .padding(.trailing, open ? 18 : 0)
         .frame(minWidth: open ? nil : 72, minHeight: open ? 52 : 28, maxHeight: open ? 52 : 28)
-        .glassSurface(Capsule(style: .continuous), tint: Island.tint)
+        .glassSurface(Capsule(style: .continuous), tint: Island.tint, clear: true)
         .overlay(Capsule(style: .continuous).strokeBorder(Island.edge, lineWidth: 1))
-        .overlay(IridescentRim(shape: Capsule(style: .continuous), lineWidth: 1.3, opacity: open ? 0.7 : 0.3, animated: open && !model.settled))
-        .overlay(SheenSweep(shape: Capsule(style: .continuous), trigger: sweepKey))
+        .overlay(IridescentRim(shape: Capsule(style: .continuous), lineWidth: 1, opacity: open ? 0.45 : 0.2, animated: open && !model.settled))
         .shadow(color: .black.opacity(0.28), radius: open ? 18 : 8, y: open ? 10 : 4)
         // A slight swell with your voice while recording.
         .scaleEffect(breathe)
@@ -215,25 +213,8 @@ private struct IslandView: View {
         .animation(contentSpring, value: contentID)
         .animation(.easeOut(duration: 0.12), value: model.lastLevel)
         .environment(\.colorScheme, .dark)
-        .onChange(of: contentID) { _, id in if id == "sent" { dropletLift() } }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityText)
-    }
-
-    /// Light sweeps across the glass when the island opens and when it sends.
-    private var sweepKey: Int {
-        guard model.expanded, !model.settled else { return 0 }
-        if case .sent = model.mode { return 2 }
-        return 1
-    }
-
-    private func dropletLift() {
-        guard !reduceMotion, !model.settled else { return }
-        withAnimation(.spring(response: 0.28, dampingFraction: 0.55)) { lift = -14 }
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(330))
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.62)) { lift = 0 }
-        }
     }
 
     private var breathe: CGFloat {
@@ -254,7 +235,7 @@ private struct IslandView: View {
     @ViewBuilder private var content: some View {
         switch model.mode {
         case .recording:
-            PixelField(levels: model.levels, animated: !model.settled)
+            DotWave(levels: model.levels, animated: !model.settled)
         case .transcribing:
             Text("Transcribing").font(.system(size: 13, weight: .semibold)).foregroundStyle(Island.text)
         case .sent(let glyph, let app, let iconPath):
@@ -303,7 +284,6 @@ private struct LaunchPad: View {
     @State private var launched = false
     @State private var showCheck = false
     @State private var spin = false
-    @State private var sparksOut = false
 
     private let diameter: CGFloat = 36
 
@@ -332,13 +312,6 @@ private struct LaunchPad: View {
                     .animation(.easeOut(duration: 0.1), value: model.lastLevel)
             } else {
                 arrow
-                // Trail left behind by the launch.
-                Capsule()
-                    .fill(LinearGradient(colors: [Island.mid.opacity(0), Island.high.opacity(0.8)], startPoint: .bottom, endPoint: .top))
-                    .frame(width: 3, height: isLaunched ? 26 : 0)
-                    .offset(y: isLaunched ? -14 : 0)
-                    .opacity(isLaunched && !isChecked ? 1 : 0)
-                sparks
                 Image(systemName: "checkmark")
                     .font(.system(size: 14, weight: .heavy))
                     .foregroundStyle(.white)
@@ -349,23 +322,6 @@ private struct LaunchPad: View {
         .frame(width: diameter, height: diameter)
         .onChange(of: model.mode) { _, mode in react(to: mode) }
         .onAppear { react(to: model.mode) }
-    }
-
-    /// A small burst from the button as the arrow launches.
-    private var sparks: some View {
-        ZStack {
-            ForEach(0..<8, id: \.self) { i in
-                let angle = Double(i) / 8 * 2 * .pi - .pi / 2
-                let radius: CGFloat = sparksOut ? 30 : 10
-                Capsule()
-                    .fill(i.isMultiple(of: 2) ? Island.high : Island.mid)
-                    .frame(width: 2.5, height: sparksOut ? 3 : 7)
-                    .rotationEffect(.radians(angle + .pi / 2))
-                    .offset(x: cos(angle) * radius, y: sin(angle) * radius)
-            }
-        }
-        .opacity(launched && !sparksOut ? 1 : 0)
-        .allowsHitTesting(false)
     }
 
     private var arrow: some View {
@@ -422,7 +378,6 @@ private struct LaunchPad: View {
         case .recording:
             launched = false
             showCheck = false
-            sparksOut = false
             spin = false
         case .transcribing:
             spin = false
@@ -435,9 +390,7 @@ private struct LaunchPad: View {
                 showCheck = true
                 return
             }
-            sparksOut = false
             withAnimation(.easeIn(duration: 0.28)) { launched = true }
-            withAnimation(.easeOut(duration: 0.55).delay(0.16)) { sparksOut = true }
             withAnimation(.spring(response: 0.35, dampingFraction: 0.6).delay(0.22)) { showCheck = true }
         case .pasted:
             spin = false
@@ -448,67 +401,66 @@ private struct LaunchPad: View {
     }
 }
 
-/// A field of glowing pixels across the island that lights up with your voice.
-/// Drawn with Canvas and rendered on the GPU (Metal) via drawingGroup.
-private struct PixelField: View {
+/// A dot-matrix wave: columns of tiny round dots that grow from the center with your voice.
+/// A slow wave runs across it when you're quiet. Drawn with Canvas on the GPU.
+private struct DotWave: View {
     let levels: [CGFloat]
     var animated = true
-    private let columns = 30
-    private let rows = 5
+    private let columns = 22
+    private let maxDots = 3  // per side of the center dot
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1 / 60, paused: !animated)) { context in
-            let tick = Int(context.date.timeIntervalSinceReferenceDate * 14)
-            Canvas { gc, size in draw(in: &gc, size: size, tick: animated ? tick : 7) }
+            let time = animated ? context.date.timeIntervalSinceReferenceDate : 1.3
+            Canvas { gc, size in draw(in: &gc, size: size, time: time) }
         }
-        .frame(width: 186, height: 32)
+        .frame(width: 168, height: 28)
         .drawingGroup()
         .accessibilityHidden(true)
     }
 
-    private func draw(in gc: inout GraphicsContext, size: CGSize, tick: Int) {
-        let cellW = size.width / CGFloat(columns)
-        let cellH = size.height / CGFloat(rows)
-        let dot = min(cellW, cellH) * 0.66
-        let current = levels.last ?? 0
-        let middle = CGFloat(rows - 1) / 2
+    private func draw(in gc: inout GraphicsContext, size: CGSize, time: Double) {
+        let spacingX = size.width / CGFloat(columns)
+        let spacingY = size.height / CGFloat(maxDots * 2 + 1)
+        let dot: CGFloat = 2.4
+        let midY = size.height / 2
 
         for c in 0..<columns {
-            // Columns run through recent audio, newest on the right.
-            let index = Int(CGFloat(c) / CGFloat(columns - 1) * CGFloat(levels.count - 1))
-            let level = levels[index]
-            for r in 0..<rows {
-                let distance = abs(CGFloat(r) - middle) / middle
-                var intensity = max(0, level * 1.5 - distance * 0.85)
-                // Sparkles: random pixels light up, more of them the louder you speak.
-                let noise = Self.noise(c, r, tick)
-                if noise < current * 0.32 { intensity = max(intensity, 0.55 + noise) }
-                intensity = min(1, intensity)
+            // Smooth across neighbouring columns so the shape reads as one wave.
+            let height = smoothedLevel(at: c)
+            let idle = 0.08 + 0.06 * sin(time * 2.2 - Double(c) * 0.45)
+            let amount = max(CGFloat(idle), height) * CGFloat(maxDots)
+            let x = (CGFloat(c) + 0.5) * spacingX
+            // Brighter toward the middle columns.
+            let centerWeight = 1 - abs(CGFloat(c) - CGFloat(columns - 1) / 2) / (CGFloat(columns) / 2) * 0.45
 
-                let rect = CGRect(
-                    x: CGFloat(c) * cellW + (cellW - dot) / 2,
-                    y: CGFloat(r) * cellH + (cellH - dot) / 2,
-                    width: dot, height: dot)
-                let path = Path(roundedRect: rect, cornerRadius: dot * 0.32)
-                gc.fill(path, with: .color(Self.color(intensity).opacity(0.14 + 0.86 * Double(intensity))))
-                if intensity > 0.7 {
-                    // Bloom around the brightest pixels.
-                    gc.fill(Path(ellipseIn: rect.insetBy(dx: -dot * 0.6, dy: -dot * 0.6)),
-                            with: .color(Color(hex: 0xC4B5FD).opacity(0.12 * Double(intensity))))
-                }
+            for step in -maxDots...maxDots {
+                let reach = CGFloat(abs(step))
+                // Fully lit inside the column's height, fading for the partial dot at the edge.
+                let lit = max(0, min(1, amount - reach + 1))
+                let alpha = step == 0 ? max(0.35, lit) : lit * 0.95
+                guard alpha > 0.02 else { continue }
+                let y = midY + CGFloat(step) * spacingY
+                let rect = CGRect(x: x - dot / 2, y: y - dot / 2, width: dot, height: dot)
+                gc.fill(Path(ellipseIn: rect), with: .color(Self.color(reach / CGFloat(maxDots)).opacity(Double(alpha * centerWeight))))
             }
         }
     }
 
-    private static func color(_ t: CGFloat) -> Color {
-        t > 0.66 ? Color(hex: 0xE9E3FF) : (t > 0.33 ? Color(hex: 0xA78BFA) : Color(hex: 0x6D4FC4))
+    private func smoothedLevel(at column: Int) -> CGFloat {
+        let position = CGFloat(column) / CGFloat(columns - 1) * CGFloat(levels.count - 1)
+        let i = Int(position)
+        let next = min(i + 1, levels.count - 1)
+        let t = position - CGFloat(i)
+        let here = levels[i] * (1 - t) + levels[next] * t
+        let left = levels[max(0, i - 1)]
+        let right = levels[min(levels.count - 1, next + 1)]
+        return min(1, here * 0.6 + (left + right) * 0.2) * 1.25
     }
 
-    /// Cheap deterministic 0...1 noise per pixel and time step.
-    private static func noise(_ x: Int, _ y: Int, _ t: Int) -> CGFloat {
-        var h = UInt32(truncatingIfNeeded: x &* 374_761_393 &+ y &* 668_265_263 &+ t &* 2_147_483_647)
-        h = (h ^ (h >> 13)) &* 1_274_126_177
-        return CGFloat(h & 0xFFFF) / 65_535
+    /// White at the center line, violet toward the tips.
+    private static func color(_ t: CGFloat) -> Color {
+        t < 0.3 ? .white : (t < 0.65 ? Color(hex: 0xD8CCFF) : Color(hex: 0xA78BFA))
     }
 }
 
