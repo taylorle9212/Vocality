@@ -6,6 +6,8 @@ On-device dictation for macOS. Hold fn, speak, release: the text is pasted into 
 
 Speech recognition uses NVIDIA Parakeet TDT 0.6B v3 through [FluidAudio](https://github.com/FluidInference/FluidAudio) (CoreML, Apple Neural Engine). Audio never leaves the Mac.
 
+Website: https://taylorle9212.github.io/Vocality/
+
 ## Usage
 
 | Key | Action |
@@ -23,7 +25,7 @@ If fn opens the emoji picker, set System Settings › Keyboard › Press 🌐 ke
 
 ## Install
 
-Download `Vocality-3.1.0.zip` from [Releases](https://github.com/taylorle9212/Vocality/releases), unzip it and move `Vocality.app` to Applications. The build is not notarized: the first time, right-click the app and choose Open.
+Download `Vocality-4.0.0.zip` from [Releases](https://github.com/taylorle9212/Vocality/releases), unzip it and move `Vocality.app` to Applications. The build is not notarized: the first time, right-click the app and choose Open.
 
 ## Build
 
@@ -47,6 +49,7 @@ make validate  # build + speech test + UI snapshots + HTML report
 ## Layout
 
 ```
+site/                    website (Vite + VGPU), deployed to GitHub Pages
 Sources/Vocality/
   VocalityApp.swift      app entry, menu bar, test flags
   AppModel.swift         record → transcribe → paste flow
