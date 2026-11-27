@@ -29,6 +29,10 @@ final class AppModel: ObservableObject {
     private let capture = AudioCapture()
     private let hotkey = HotkeyMonitor()
     private var permissionTimer: Timer?
+    private var recordingTimer: Timer?
+
+    /// Recordings stop and send automatically at this length.
+    static let maxRecordingSeconds: TimeInterval = 120
 
     var isReady: Bool { modelState == .ready && micGranted && accessibilityGranted }
 
@@ -120,13 +124,34 @@ final class AppModel: ObservableObject {
             phase = .recording
             Sounds.start()
             overlay.show(.recording)
+            startRecordingTimer()
         } catch {
             overlay.flash(.error(error.localizedDescription))
         }
     }
 
+    /// Drives the ring around the send button and enforces the maximum length.
+    private func startRecordingTimer() {
+        recordingTimer?.invalidate()
+        let started = Date()
+        recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.phase == .recording else { return }
+                let elapsed = Date().timeIntervalSince(started)
+                self.overlay.update(progress: elapsed / Self.maxRecordingSeconds)
+                if elapsed >= Self.maxRecordingSeconds { self.finishRecording() }
+            }
+        }
+    }
+
+    private func stopRecordingTimer() {
+        recordingTimer?.invalidate()
+        recordingTimer = nil
+    }
+
     private func finishRecording() {
         guard phase == .recording else { return }
+        stopRecordingTimer()
         let samples: [Float]
         do {
             samples = try capture.stop()
@@ -180,6 +205,7 @@ final class AppModel: ObservableObject {
 
     private func cancelRecording() {
         guard phase == .recording else { return }
+        stopRecordingTimer()
         capture.cancel()
         phase = .idle
         overlay.hide()

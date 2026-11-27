@@ -15,6 +15,8 @@ Speech recognition uses NVIDIA Parakeet TDT 0.6B v3 through [FluidAudio](https:/
 | esc | Cancel |
 | ⇧⌘E (menu bar) | Toggle Return after pasting |
 
+Recordings stop and send automatically after 2 minutes; the ring around the send button shows the time used.
+
 The first launch downloads the model (about 450 MB). Vocality needs Microphone and Accessibility permission.
 
 If fn opens the emoji picker, set System Settings › Keyboard › Press 🌐 key to › Do Nothing.
