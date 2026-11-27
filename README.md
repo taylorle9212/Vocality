@@ -21,7 +21,7 @@ If fn opens the emoji picker, set System Settings › Keyboard › Press 🌐 ke
 
 ## Install
 
-Download `Vocality-3.0.0.zip` from [Releases](https://github.com/taylorle9212/Vocality/releases), unzip it and move `Vocality.app` to Applications. The build is not notarized: the first time, right-click the app and choose Open.
+Download `Vocality-3.1.0.zip` from [Releases](https://github.com/taylorle9212/Vocality/releases), unzip it and move `Vocality.app` to Applications. The build is not notarized: the first time, right-click the app and choose Open.
 
 ## Build
 
