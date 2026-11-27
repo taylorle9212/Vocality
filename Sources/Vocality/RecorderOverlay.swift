@@ -266,7 +266,7 @@ private struct LaunchPad: View {
             Circle().stroke(Color.white.opacity(0.12), lineWidth: 3)
             Circle()
                 .trim(from: 0, to: ringTrim)
-                .stroke(Island.mid, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .stroke(model.mode == .recording ? Thermal.color(0.3 + model.charge * 0.55) : Island.mid, style: StrokeStyle(lineWidth: 3, lineCap: .round))
                 .rotationEffect(.degrees(spin ? 270 : -90))
                 .animation(.easeOut(duration: 0.12), value: model.charge)
 
@@ -369,6 +369,29 @@ private struct LaunchPad: View {
     }
 }
 
+/// Thermal ("inferno") palette: deep violet → magenta → red-orange → amber → white-hot.
+private enum Thermal {
+    private static let stops: [(CGFloat, (Double, Double, Double))] = [
+        (0.0, (0.20, 0.04, 0.37)),   // #320A5E
+        (0.3, (0.47, 0.11, 0.43)),   // #781C6D
+        (0.55, (0.74, 0.22, 0.33)),  // #BC3754
+        (0.75, (0.93, 0.41, 0.15)),  // #ED6925
+        (0.9, (0.98, 0.71, 0.10)),   // #FBB61A
+        (1.0, (0.99, 1.0, 0.64)),    // #FCFFA4
+    ]
+
+    static func color(_ value: CGFloat) -> Color {
+        let t = max(0, min(1, value))
+        for i in 1..<stops.count where t <= stops[i].0 {
+            let (t0, a) = stops[i - 1]
+            let (t1, b) = stops[i]
+            let f = Double((t - t0) / (t1 - t0))
+            return Color(red: a.0 + (b.0 - a.0) * f, green: a.1 + (b.1 - a.1) * f, blue: a.2 + (b.2 - a.2) * f)
+        }
+        return Color(red: 0.99, green: 1.0, blue: 0.64)
+    }
+}
+
 /// A dot-matrix wave: columns of tiny round dots that grow from the center with your voice.
 /// A slow wave runs across it when you're quiet. Drawn with Canvas on the GPU.
 private struct DotWave: View {
@@ -393,24 +416,36 @@ private struct DotWave: View {
         let dot: CGFloat = 2.4
         let midY = size.height / 2
 
-        for c in 0..<columns {
-            // Smooth across neighbouring columns so the shape reads as one wave.
-            let height = smoothedLevel(at: c)
+        let heights: [CGFloat] = (0..<columns).map { c in
             let idle = 0.08 + 0.06 * sin(time * 2.2 - Double(c) * 0.45)
-            let amount = max(CGFloat(idle), height) * CGFloat(maxDots)
-            let x = (CGFloat(c) + 0.5) * spacingX
-            // Brighter toward the middle columns.
-            let centerWeight = 1 - abs(CGFloat(c) - CGFloat(columns - 1) / 2) / (CGFloat(columns) / 2) * 0.45
+            return max(CGFloat(idle), smoothedLevel(at: c))
+        }
 
+        // Heat haze: a blurred thermal glow behind loud columns.
+        gc.drawLayer { haze in
+            haze.addFilter(.blur(radius: 7))
+            for (c, height) in heights.enumerated() where height > 0.18 {
+                let x = (CGFloat(c) + 0.5) * spacingX
+                let h = size.height * min(1, height) * 0.9
+                let rect = CGRect(x: x - spacingX, y: midY - h / 2, width: spacingX * 2, height: h)
+                haze.fill(Path(ellipseIn: rect), with: .color(Thermal.color(height * 0.85).opacity(0.38 * Double(height))))
+            }
+        }
+
+        for (c, height) in heights.enumerated() {
+            let amount = height * CGFloat(maxDots)
+            let x = (CGFloat(c) + 0.5) * spacingX
             for step in -maxDots...maxDots {
                 let reach = CGFloat(abs(step))
                 // Fully lit inside the column's height, fading for the partial dot at the edge.
                 let lit = max(0, min(1, amount - reach + 1))
-                let alpha = step == 0 ? max(0.35, lit) : lit * 0.95
+                let alpha = step == 0 ? max(0.45, lit) : lit
                 guard alpha > 0.02 else { continue }
+                // Hottest at the center line of loud columns, cooling toward the tips.
+                let heat = min(1, 0.22 + height * (1 - reach / CGFloat(maxDots) * 0.55))
                 let y = midY + CGFloat(step) * spacingY
                 let rect = CGRect(x: x - dot / 2, y: y - dot / 2, width: dot, height: dot)
-                gc.fill(Path(ellipseIn: rect), with: .color(Self.color(reach / CGFloat(maxDots)).opacity(Double(alpha * centerWeight))))
+                gc.fill(Path(ellipseIn: rect), with: .color(Thermal.color(heat).opacity(Double(alpha))))
             }
         }
     }
@@ -424,11 +459,6 @@ private struct DotWave: View {
         let left = levels[max(0, i - 1)]
         let right = levels[min(levels.count - 1, next + 1)]
         return min(1, here * 0.6 + (left + right) * 0.2) * 1.25
-    }
-
-    /// White at the center line, violet toward the tips.
-    private static func color(_ t: CGFloat) -> Color {
-        t < 0.3 ? .white : (t < 0.65 ? Color(hex: 0xD8CCFF) : Color(hex: 0xA78BFA))
     }
 }
 
