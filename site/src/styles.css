@@ -58,7 +58,8 @@ body {
   font-size: 16px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
+  /* clip, not hidden: hidden makes a scroll container and breaks position: sticky in Safari. */
+  overflow-x: clip;
 }
 
 a {
@@ -882,4 +883,33 @@ h3 {
   transform: translateX(-50%);
   z-index: -1;
   pointer-events: none;
+}
+
+/* Phones and short screens: keep the pinned story within one screen. */
+@media (max-width: 640px), (max-height: 760px) {
+  .scrolly-pin {
+    gap: 14px;
+    padding-top: 56px;
+    padding-bottom: 24px;
+  }
+  .scrolly-pin .section-head p {
+    display: none;
+  }
+  .scrolly-pin .section-head h2 {
+    font-size: clamp(1.5rem, 6vw, 2rem);
+  }
+  .scrolly-pin .stage {
+    padding: 20px 12px 18px;
+  }
+  .window-body {
+    min-height: 104px;
+    font-size: 13px;
+  }
+  .captions {
+    font-size: 15px;
+    padding-inline: 8px;
+  }
+  .closing {
+    padding-block: 88px;
+  }
 }

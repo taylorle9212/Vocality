@@ -11,9 +11,11 @@ import type { DotField, FieldConfig, Layout } from "./field";
 import { createGpuField, type GpuField } from "./gpu-field";
 import { createTimeline, type Envelope } from "./timeline";
 
+const isPhone = window.matchMedia("(max-width: 700px), (pointer: coarse)").matches;
+
 const heroConfig: FieldConfig = {
   label: "hero",
-  count: 6000,
+  count: isPhone ? 2500 : 6000,
   sizeBoost: 1,
   layout: (w, h): Layout => {
     const aspect = w / Math.max(1, h);
@@ -199,6 +201,17 @@ function watchPointer(canvas: HTMLCanvasElement, field: { setPointer(point: [num
     { passive: true },
   );
   window.addEventListener("pointerleave", () => field.setPointer(null));
+  // Touch: pointer events stop once the page starts scrolling, so track the finger directly.
+  const touch = (e: TouchEvent) => {
+    const t = e.touches[0];
+    if (!t) return field.setPointer(null);
+    const r = canvas.getBoundingClientRect();
+    const inside = t.clientX >= r.left && t.clientX <= r.right && t.clientY >= r.top && t.clientY <= r.bottom;
+    field.setPointer(inside ? [t.clientX - r.left, t.clientY - r.top] : null);
+  };
+  window.addEventListener("touchstart", touch, { passive: true });
+  window.addEventListener("touchmove", touch, { passive: true });
+  window.addEventListener("touchend", () => field.setPointer(null), { passive: true });
 }
 
 interface Scene {
