@@ -139,16 +139,20 @@ final class RecorderOverlay {
 
 // MARK: - Views
 
-/// Island colors are fixed: frosted white glass in both light and dark mode.
+/// Island colors: frosted white glass in light mode, graphite glass in dark mode.
 private enum Island {
-    static let tint = Color.white.opacity(0.55)
-    static let text = Color(hex: 0x111113)
-    static let secondary = Color(hex: 0x5F5F68)
-    static let edge = Color.black.opacity(0.07)
-    static let track = Color.black.opacity(0.08)
+    static let tint = Color(light: 0xFFFFFF, dark: 0x0C0C0E, lightAlpha: 0.55, darkAlpha: 0.42)
+    static let text = Color(light: 0x111113, dark: 0xF4F4F5)
+    static let secondary = Color(light: 0x5F5F68, dark: 0xA1A1AA)
+    static let edge = Color(light: 0x000000, dark: 0xFFFFFF, lightAlpha: 0.07, darkAlpha: 0.1)
+    static let track = Color(light: 0x000000, dark: 0xFFFFFF, lightAlpha: 0.08, darkAlpha: 0.12)
     static let mid = Color(hex: 0xED6925)
-    static let high = Color(hex: 0x111113)
-    static let send = Color(hex: 0x18181B)
+    static let high = Color(light: 0x111113, dark: 0xF4F4F5)
+    static let pad = Color(light: 0xFFFFFF, dark: 0x2A2A2E, lightAlpha: 0.7, darkAlpha: 0.7)
+    /// Solid send button once sent, and the checkmark on it.
+    static let send = Color(light: 0x18181B, dark: 0xF4F4F5)
+    static let check = Color(light: 0xFFFFFF, dark: 0x111113)
+    static let textHalo = Color(light: 0xFFFFFF, dark: 0x000000, lightAlpha: 0.7, darkAlpha: 0.5)
 }
 
 /// Smooth, unbouncy motion for the island gliding in and out.
@@ -179,11 +183,19 @@ private struct IslandView: View {
     var body: some View {
         HStack(spacing: 12) {
             LaunchPad(model: model)
-            content
-                .shadow(color: .white.opacity(0.7), radius: 2)
-                .fixedSize()
-                .transition(.opacity)
-                .id(contentID)
+            ZStack(alignment: .leading) {
+                // One engine lives across all states so particles flow from listening to refining to sent.
+                if usesEngine {
+                    ParticleEngineView(volume: model.volume, phase: enginePhase)
+                        .frame(width: 190, height: 36)
+                        .allowsHitTesting(false)
+                }
+                content
+                    .shadow(color: Island.textHalo, radius: 2)
+                    .fixedSize()
+                    .transition(.opacity)
+                    .id(contentID)
+            }
         }
         .padding(.leading, 8)
         .padding(.trailing, 18)
@@ -195,9 +207,20 @@ private struct IslandView: View {
         .glassGroup(spacing: 12)
         // Width eases as the content changes; no bounce.
         .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: contentID)
-        .environment(\.colorScheme, .light)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityText)
+    }
+
+    /// The Metal engine, unless drawing offscreen (snapshots) or Metal is unavailable.
+    private var usesEngine: Bool { !model.settled && ParticleEngine.shared != nil }
+
+    private var enginePhase: ParticlePhase {
+        switch model.mode {
+        case .recording: return .listening
+        case .transcribing: return .refining
+        case .sent: return .sent
+        case .pasted, .error: return .idle
+        }
     }
 
     private var contentID: String {
@@ -213,9 +236,17 @@ private struct IslandView: View {
     @ViewBuilder private var content: some View {
         switch model.mode {
         case .recording:
-            ParticleField(volume: model.volume, animated: !model.settled)
+            if usesEngine {
+                Color.clear.frame(width: 190, height: 36)
+            } else {
+                ParticleField(volume: model.volume, animated: !model.settled)
+            }
         case .transcribing:
-            Text("Transcribing").font(.system(size: 13, weight: .semibold)).foregroundStyle(Island.text)
+            if usesEngine {
+                Color.clear.frame(width: 190, height: 36)
+            } else {
+                Text("Transcribing").font(.system(size: 13, weight: .semibold)).foregroundStyle(Island.text)
+            }
         case .sent(let glyph, let app, let iconPath):
             HStack(spacing: 7) {
                 if let iconPath {
@@ -292,7 +323,7 @@ private struct LaunchPad: View {
                 arrow
                 Image(systemName: "checkmark")
                     .font(.system(size: 14, weight: .heavy))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Island.check)
                     .scaleEffect(isChecked ? 1 : 0.3)
                     .opacity(isChecked ? 1 : 0)
             }
@@ -305,7 +336,7 @@ private struct LaunchPad: View {
     private var arrow: some View {
         Image(systemName: "arrow.up")
             .font(.system(size: 15, weight: .bold))
-            .foregroundStyle(isSent ? .white : Island.high)
+            .foregroundStyle(isSent ? Island.check : Island.high)
             .offset(y: isLaunched ? -40 : 0)
             .scaleEffect(isLaunched ? 0.6 : 1)
             .opacity(isLaunched || isChecked ? 0 : 1)
@@ -340,7 +371,7 @@ private struct LaunchPad: View {
     private var padTint: Color {
         if isSent || isChecked { return Island.send }
         if isError { return Color(hex: 0xFB923C).opacity(0.2) }
-        return Color.white.opacity(0.7)
+        return Island.pad
     }
 
     private var ringTrim: CGFloat {
