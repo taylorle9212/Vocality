@@ -20,7 +20,7 @@ final class RecorderOverlay {
         @Published var visible = false
         @Published var autoSend = true
         @Published var levels: [CGFloat] = Array(repeating: 0, count: 22)
-        /// 0...1, fills while you speak: the "charge" of the send arrow.
+        /// 0...1: recording time used out of the maximum length.
         @Published var charge: CGFloat = 0
         /// For offscreen snapshots: draw each state's end frame instead of animating into it.
         var settled = false
@@ -32,7 +32,6 @@ final class RecorderOverlay {
             smoothed = smoothed * 0.55 + CGFloat(level) * 0.45
             levels.removeFirst()
             levels.append(smoothed)
-            charge = min(1, charge + 0.004 + smoothed * 0.02)
         }
 
         func reset() {
@@ -58,6 +57,12 @@ final class RecorderOverlay {
     func update(level: Float) {
         guard model.mode == .recording else { return }
         model.push(level: level)
+    }
+
+    /// Recording time used, 0...1 of the maximum length. Drawn as the ring around the send button.
+    func update(progress: Double) {
+        guard model.mode == .recording else { return }
+        model.charge = CGFloat(min(1, max(0, progress)))
     }
 
     /// Shows a final state briefly, then folds the island away.
@@ -128,17 +133,16 @@ final class RecorderOverlay {
 
 // MARK: - Views
 
-/// Island colors are fixed: the island is black in both light and dark mode.
+/// Island colors are fixed: frosted white glass in both light and dark mode.
 private enum Island {
-    /// A whisper of tint: the island is clear glass you can see through.
-    static let tint = Color.black.opacity(0.12)
-    static let text = Color.white
-    static let secondary = Color.white.opacity(0.6)
-    static let edge = Color.white.opacity(0.09)
-    static let low = Color(hex: 0x4C3A8F)
-    static let mid = Color(hex: 0x8B5CF6)
-    static let high = Color(hex: 0xC4B5FD)
-    static let send = Color(hex: 0x7C3AED)
+    static let tint = Color.white.opacity(0.55)
+    static let text = Color(hex: 0x111113)
+    static let secondary = Color(hex: 0x5F5F68)
+    static let edge = Color.black.opacity(0.07)
+    static let track = Color.black.opacity(0.08)
+    static let mid = Color(hex: 0xED6925)
+    static let high = Color(hex: 0x111113)
+    static let send = Color(hex: 0x18181B)
 }
 
 /// Smooth, unbouncy motion for the island gliding in and out.
@@ -170,7 +174,7 @@ private struct IslandView: View {
         HStack(spacing: 12) {
             LaunchPad(model: model)
             content
-                .shadow(color: .black.opacity(0.45), radius: 3, y: 1)
+                .shadow(color: .white.opacity(0.7), radius: 2)
                 .fixedSize()
                 .transition(.opacity)
                 .id(contentID)
@@ -185,7 +189,7 @@ private struct IslandView: View {
         .glassGroup(spacing: 12)
         // Width eases as the content changes; no bounce.
         .animation(reduceMotion ? nil : .smooth(duration: 0.35), value: contentID)
-        .environment(\.colorScheme, .dark)
+        .environment(\.colorScheme, .light)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityText)
     }
@@ -203,7 +207,7 @@ private struct IslandView: View {
     @ViewBuilder private var content: some View {
         switch model.mode {
         case .recording:
-            DotWave(levels: model.levels, animated: !model.settled)
+            DotField3D(levels: model.levels, animated: !model.settled)
         case .transcribing:
             Text("Transcribing").font(.system(size: 13, weight: .semibold)).foregroundStyle(Island.text)
         case .sent(let glyph, let app, let iconPath):
@@ -263,10 +267,10 @@ private struct LaunchPad: View {
             IridescentRim(shape: Circle(), lineWidth: 1, opacity: 0.55)
 
             // Charge ring: fills as you speak, spins while transcribing.
-            Circle().stroke(Color.white.opacity(0.12), lineWidth: 3)
+            Circle().stroke(Island.track, lineWidth: 3)
             Circle()
                 .trim(from: 0, to: ringTrim)
-                .stroke(model.mode == .recording ? Thermal.color(0.3 + model.charge * 0.55) : Island.mid, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                .stroke(model.mode == .recording ? Thermal.color(0.35 + model.charge * 0.5) : Island.mid, style: StrokeStyle(lineWidth: 3, lineCap: .round))
                 .rotationEffect(.degrees(spin ? 270 : -90))
                 .animation(.easeOut(duration: 0.12), value: model.charge)
 
@@ -330,12 +334,12 @@ private struct LaunchPad: View {
     private var padTint: Color {
         if isSent || isChecked { return Island.send }
         if isError { return Color(hex: 0xFB923C).opacity(0.2) }
-        return Island.mid.opacity(0.22)
+        return Color.white.opacity(0.7)
     }
 
     private var ringTrim: CGFloat {
         switch model.mode {
-        case .recording: return max(0.04, model.charge)
+        case .recording: return model.charge
         case .transcribing: return 0.3
         default: return 0
         }
@@ -370,7 +374,7 @@ private struct LaunchPad: View {
 }
 
 /// Thermal ("inferno") palette: deep violet → magenta → red-orange → amber → white-hot.
-private enum Thermal {
+enum Thermal {
     private static let stops: [(CGFloat, (Double, Double, Double))] = [
         (0.0, (0.20, 0.04, 0.37)),   // #320A5E
         (0.3, (0.47, 0.11, 0.43)),   // #781C6D
@@ -392,73 +396,81 @@ private enum Thermal {
     }
 }
 
-/// A dot-matrix wave: columns of tiny round dots that grow from the center with your voice.
-/// A slow wave runs across it when you're quiet. Drawn with Canvas on the GPU.
-private struct DotWave: View {
+/// A 3D field of tiny dots: a sheet in perspective that ripples with your voice.
+/// Louder speech raises waves that roll back into depth; the sheet sways slowly so it reads as 3D.
+/// Drawn every frame with Canvas, rendered on the GPU (Metal) via drawingGroup.
+private struct DotField3D: View {
     let levels: [CGFloat]
     var animated = true
-    private let columns = 22
-    private let maxDots = 3  // per side of the center dot
+    private let columns = 24
+    private let rows = 6
+
+    private struct Dot {
+        let x: CGFloat, y: CGFloat, depth: CGFloat, size: CGFloat, heat: CGFloat
+    }
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1 / 60, paused: !animated)) { context in
-            let time = animated ? context.date.timeIntervalSinceReferenceDate : 1.3
+            let time = animated ? context.date.timeIntervalSinceReferenceDate : 2.0
             Canvas { gc, size in draw(in: &gc, size: size, time: time) }
         }
-        .frame(width: 168, height: 28)
+        .frame(width: 190, height: 40)
         .drawingGroup()
         .accessibilityHidden(true)
     }
 
     private func draw(in gc: inout GraphicsContext, size: CGSize, time: Double) {
-        let spacingX = size.width / CGFloat(columns)
-        let spacingY = size.height / CGFloat(maxDots * 2 + 1)
-        let dot: CGFloat = 2.4
-        let midY = size.height / 2
+        let yaw = sin(time * 0.45) * 0.32          // slow sway
+        let pitch = 0.82                             // looking down onto the sheet
+        let (cy, sy) = (cos(yaw), sin(yaw))
+        let (cp, sp) = (cos(pitch), sin(pitch))
+        var dots: [Dot] = []
+        dots.reserveCapacity(columns * rows)
 
-        let heights: [CGFloat] = (0..<columns).map { c in
-            let idle = 0.08 + 0.06 * sin(time * 2.2 - Double(c) * 0.45)
-            return max(CGFloat(idle), smoothedLevel(at: c))
-        }
+        for r in 0..<rows {
+            let z = CGFloat(r) / CGFloat(rows - 1) * 2 - 1          // -1 (front) ... 1 (back)
+            for c in 0..<columns {
+                let x = CGFloat(c) / CGFloat(columns - 1) * 2 - 1
+                // Waves travel back into depth: rows further back show slightly older audio.
+                let level = sample(column: c, delay: r)
+                let ripple = 0.06 * sin(time * 2.6 - Double(c) * 0.42 - Double(r) * 0.7)
+                let height = level * (1 - 0.35 * (z + 1) / 2) * 0.9 + CGFloat(ripple)
 
-        // Heat haze: a blurred thermal glow behind loud columns.
-        gc.drawLayer { haze in
-            haze.addFilter(.blur(radius: 7))
-            for (c, height) in heights.enumerated() where height > 0.18 {
-                let x = (CGFloat(c) + 0.5) * spacingX
-                let h = size.height * min(1, height) * 0.9
-                let rect = CGRect(x: x - spacingX, y: midY - h / 2, width: spacingX * 2, height: h)
-                haze.fill(Path(ellipseIn: rect), with: .color(Thermal.color(height * 0.85).opacity(0.38 * Double(height))))
+                // Rotate (yaw), tilt (pitch), project with perspective.
+                let rx = x * cy + z * sy
+                let rz = -x * sy + z * cy
+                let ty = height * cp - rz * sp
+                let tz = height * sp + rz * cp
+                let perspective = 2.6 / (2.6 + tz)
+                let px = size.width / 2 + rx * perspective * size.width * 0.46
+                let py = size.height / 2 - ty * perspective * size.height * 0.42
+                let near = (1 - (tz + 1) / 2)
+                dots.append(Dot(x: px, y: py, depth: tz,
+                                size: 1.4 + 1.2 * perspective * (0.7 + 0.3 * near),
+                                heat: min(0.86, 0.3 + max(0, height) * 0.95)))
             }
         }
 
-        for (c, height) in heights.enumerated() {
-            let amount = height * CGFloat(maxDots)
-            let x = (CGFloat(c) + 0.5) * spacingX
-            for step in -maxDots...maxDots {
-                let reach = CGFloat(abs(step))
-                // Fully lit inside the column's height, fading for the partial dot at the edge.
-                let lit = max(0, min(1, amount - reach + 1))
-                let alpha = step == 0 ? max(0.45, lit) : lit
-                guard alpha > 0.02 else { continue }
-                // Hottest at the center line of loud columns, cooling toward the tips.
-                let heat = min(1, 0.22 + height * (1 - reach / CGFloat(maxDots) * 0.55))
-                let y = midY + CGFloat(step) * spacingY
-                let rect = CGRect(x: x - dot / 2, y: y - dot / 2, width: dot, height: dot)
-                gc.fill(Path(ellipseIn: rect), with: .color(Thermal.color(heat).opacity(Double(alpha))))
-            }
+        // Far dots first so near dots sit on top.
+        for dot in dots.sorted(by: { $0.depth > $1.depth }) {
+            let fade = 0.35 + 0.65 * Double(1 - (dot.depth + 1) / 2)
+            let rect = CGRect(x: dot.x - dot.size / 2, y: dot.y - dot.size / 2, width: dot.size, height: dot.size)
+            gc.fill(Path(ellipseIn: rect), with: .color(Thermal.color(dot.heat).opacity(fade)))
         }
     }
 
-    private func smoothedLevel(at column: Int) -> CGFloat {
-        let position = CGFloat(column) / CGFloat(columns - 1) * CGFloat(levels.count - 1)
-        let i = Int(position)
-        let next = min(i + 1, levels.count - 1)
-        let t = position - CGFloat(i)
+    /// Audio level for a column, `delay` steps older for rows further back.
+    private func sample(column: Int, delay: Int) -> CGFloat {
+        let count = levels.count
+        let position = CGFloat(column) / CGFloat(columns - 1) * CGFloat(count - 1) - CGFloat(delay) * 0.8
+        let p = max(0, min(CGFloat(count - 1), position))
+        let i = Int(p)
+        let next = min(i + 1, count - 1)
+        let t = p - CGFloat(i)
         let here = levels[i] * (1 - t) + levels[next] * t
-        let left = levels[max(0, i - 1)]
-        let right = levels[min(levels.count - 1, next + 1)]
-        return min(1, here * 0.6 + (left + right) * 0.2) * 1.25
+        // Blend with neighbours so the surface is smooth, not jagged.
+        let around = (levels[max(0, i - 1)] + levels[min(count - 1, next + 1)]) / 2
+        return min(1, (here * 0.6 + around * 0.4) * 1.15)
     }
 }
 
