@@ -33,6 +33,11 @@ enum Entry {
             }
             return
         }
+        // `Vocality --engine-check <dir>` runs the Metal particle engine offscreen and saves frames.
+        if let i = args.firstIndex(of: "--engine-check"), i + 1 < args.count {
+            ParticleEngine.offscreenCheck(outputDirectory: URL(fileURLWithPath: args[i + 1])).forEach { print($0) }
+            return
+        }
         VocalityApp.main()
     }
 }
