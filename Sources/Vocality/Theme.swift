@@ -6,11 +6,11 @@ enum Theme {
     static let background = Color(light: 0xFAFAFA, dark: 0x0A0A0B)
     static let card = Color(light: 0xFFFFFF, dark: 0x141416, lightAlpha: 0.82, darkAlpha: 0.78)
     /// Tint for glass cards over the thermal backdrop: white in light mode, graphite in dark.
-    static let glassTint = Color(light: 0xFFFFFF, dark: 0x111113, lightAlpha: 0.62, darkAlpha: 0.55)
-    static let line = Color(light: 0xE7E7EA, dark: 0x2A2A2F)
+    static let glassTint = Color(light: 0xFFFFFF, dark: 0x161618, lightAlpha: 0.66, darkAlpha: 0.62)
+    static let line = Color(light: 0xE7E7EA, dark: 0x2C2C31)
     static let ink = Color(light: 0x111113, dark: 0xF4F4F5)
     static let slate = Color(light: 0x5F5F68, dark: 0xA1A1AA)
-    static let chip = Color(light: 0xF2F2F4, dark: 0x232327)
+    static let chip = Color(light: 0xF2F2F4, dark: 0x26262B)
     static let chipText = Color(light: 0x27272A, dark: 0xE4E4E7)
 
     static let accent300 = Color(light: 0xD4D4D8, dark: 0x52525B)
@@ -18,7 +18,7 @@ enum Theme {
     static let accent500 = Color(light: 0xE0582A, dark: 0xF47A3D)
     static let accent600 = Color(light: 0xD04A22, dark: 0xFB923C)
     /// Buttons and switches: graphite, with white text at more than 7:1.
-    static let action = Color(light: 0x18181B, dark: 0x3F3F46)
+    static let action = Color(light: 0x18181B, dark: 0x52525B)
     static let warning = Color(light: 0xC2410C, dark: 0xFB923C)
 
     /// The brand gradient, thermal from deep violet to amber.
@@ -28,26 +28,23 @@ enum Theme {
     static let iconGradient = LinearGradient(colors: thermal, startPoint: .bottomLeading, endPoint: .topTrailing)
 }
 
-/// The window backdrop: a soft thermal mesh gradient under the white glass cards.
+/// The window backdrop: a neutral base lit by three soft thermal glows, like a heat map.
+/// Near-white in light mode, near-black in dark mode.
 struct WindowBackdrop: View {
     var body: some View {
         ZStack {
-            MeshGradient(
-                width: 3, height: 3,
-                points: [
-                    [0, 0], [0.5, 0], [1, 0],
-                    [0, 0.5], [0.55, 0.45], [1, 0.5],
-                    [0, 1], [0.5, 1], [1, 1],
-                ],
-                colors: [
-                    Color(light: 0xFFD27A, dark: 0x7A3A10), Color(light: 0xFFB088, dark: 0x6E2418), Color(light: 0xF5A3B5, dark: 0x4A1236),
-                    Color(light: 0xFFA36B, dark: 0x6A2A12), Color(light: 0xF08A9A, dark: 0x4E1530), Color(light: 0xC9A3E8, dark: 0x2A0E45),
-                    Color(light: 0xF48FA8, dark: 0x45122E), Color(light: 0xC6A0E6, dark: 0x2A0C44), Color(light: 0xA99BE0, dark: 0x170733),
-                ])
-            // Wash so the gradient stays soft behind text.
-            Color(light: 0xFFFFFF, dark: 0x050506, lightAlpha: 0.42, darkAlpha: 0.38)
+            Color(light: 0xFAFAFA, dark: 0x09090B, lightAlpha: 0.88, darkAlpha: 0.9)
+            glow(light: 0xFFB45C, dark: 0xED6925, lightAlpha: 0.42, darkAlpha: 0.2, center: UnitPoint(x: 0.08, y: 0.02), radius: 420)
+            glow(light: 0xF47A9B, dark: 0xBC3754, lightAlpha: 0.3, darkAlpha: 0.17, center: UnitPoint(x: 1.0, y: 0.38), radius: 380)
+            glow(light: 0xB79BEA, dark: 0x5B1A8C, lightAlpha: 0.32, darkAlpha: 0.32, center: UnitPoint(x: 0.3, y: 1.05), radius: 460)
         }
         .ignoresSafeArea()
+    }
+
+    private func glow(light: UInt32, dark: UInt32, lightAlpha: CGFloat, darkAlpha: CGFloat, center: UnitPoint, radius: CGFloat) -> some View {
+        RadialGradient(
+            colors: [Color(light: light, dark: dark, lightAlpha: lightAlpha, darkAlpha: darkAlpha), .clear],
+            center: center, startRadius: 0, endRadius: radius)
     }
 }
 
