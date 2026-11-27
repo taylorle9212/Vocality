@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vocality: on-device dictation for macOS</title>
+    <meta name="description" content="Hold fn, speak, release. Vocality transcribes on your Mac with NVIDIA Parakeet V3 and pastes the text into the frontmost app. Open source, MIT, about 8 MB." />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0e0e10" media="(prefers-color-scheme: dark)" />
+    <meta property="og:title" content="Vocality" />
+    <meta property="og:description" content="On-device dictation for macOS." />
+    <meta property="og:image" content="https://taylorle9212.github.io/Vocality/banner.png" />
+    <link rel="icon" type="image/png" href="/icon.png" />
+    <link rel="apple-touch-icon" href="/icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <header class="nav">
+      <a class="brand" href="#top" aria-label="Vocality home">
+        <img src="/icon.png" alt="" width="28" height="28" />
+        <span>Vocality</span>
+      </a>
+      <nav aria-label="Sections">
+        <a href="#demo">Recorder</a>
+        <a href="#how">How it works</a>
+        <a href="#features">Features</a>
+        <a class="nav-gh" href="https://github.com/taylorle9212/Vocality">GitHub</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero" aria-labelledby="hero-title">
+        <canvas id="hero-field" class="field" aria-hidden="true"></canvas>
+        <div class="hero-veil" aria-hidden="true"></div>
+        <div class="hero-inner">
+          <p class="eyebrow">Open source · macOS 15+ · Apple silicon</p>
+          <h1 id="hero-title"><span class="thermal-text">Vocality</span></h1>
+          <p class="lede">On-device dictation for macOS.</p>
+          <p class="sublede">Hold <kbd>fn</kbd>, speak, release. The text lands in the app you're using.</p>
+          <div class="cta">
+            <a id="download" class="btn btn-primary" href="https://github.com/taylorle9212/Vocality/releases/latest">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M16.37 12.6c-.02-2.2 1.8-3.26 1.88-3.31-1.03-1.5-2.62-1.7-3.18-1.73-1.35-.14-2.64.8-3.33.8-.69 0-1.74-.78-2.87-.76-1.47.02-2.83.86-3.59 2.18-1.53 2.66-.39 6.59 1.1 8.75.73 1.05 1.6 2.24 2.73 2.2 1.1-.05 1.51-.71 2.84-.71 1.32 0 1.7.71 2.86.69 1.18-.02 1.93-1.07 2.65-2.13.84-1.22 1.18-2.4 1.2-2.46-.03-.01-2.3-.88-2.32-3.5zM14.2 6.13c.6-.73 1.01-1.75.9-2.76-.87.04-1.92.58-2.54 1.3-.56.64-1.05 1.67-.92 2.66.97.08 1.96-.49 2.56-1.2z"/></svg>
+              Download for Mac
+            </a>
+            <a class="btn btn-secondary" href="https://github.com/taylorle9212/Vocality">
+              <svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+              View on GitHub
+            </a>
+          </div>
+          <p class="fineprint">Free and MIT licensed. About 8 MB; the speech model (about 450 MB) downloads on first launch.</p>
+        </div>
+      </section>
+
+      <section id="demo" class="section demo" aria-labelledby="demo-title">
+        <div class="section-head">
+          <h2 id="demo-title">A recorder that stays out of the way</h2>
+          <p>While you hold <kbd>fn</kbd>, a small glass island sits at the bottom of the screen. Dots appear and drift more as you speak louder, condense into a line while the text is transcribed, then stream into the send button.</p>
+        </div>
+
+        <div class="stage">
+          <div class="stage-glow" aria-hidden="true"></div>
+          <div class="window" aria-hidden="true">
+            <div class="window-bar">
+              <span class="lights"><i></i><i></i><i></i></span>
+              <span class="window-title">Claude Code</span>
+            </div>
+            <div class="window-body">
+              <p class="term-dim">~/projects/vocality</p>
+              <p class="term-line"><span class="term-prompt">&gt;</span> <span id="typed"></span><span class="caret"></span></p>
+              <p class="term-return" id="return-key"><kbd>Return</kbd> sent</p>
+            </div>
+          </div>
+
+          <div class="island" id="island">
+            <button class="send" id="send-btn" type="button" tabindex="-1" aria-hidden="true">
+              <svg class="ring" viewBox="0 0 40 40" aria-hidden="true">
+                <defs>
+                  <linearGradient id="ring-grad" x1="0" y1="1" x2="1" y2="0">
+                    <stop offset="0" stop-color="#320A5E" />
+                    <stop offset="0.3" stop-color="#781C6D" />
+                    <stop offset="0.55" stop-color="#BC3754" />
+                    <stop offset="0.8" stop-color="#ED6925" />
+                    <stop offset="1" stop-color="#FBB61A" />
+                  </linearGradient>
+                </defs>
+                <circle class="ring-track" cx="20" cy="20" r="17" />
+                <circle class="ring-progress" id="ring-progress" cx="20" cy="20" r="17" />
+              </svg>
+              <svg class="glyph arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5" /></svg>
+              <svg class="glyph check" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 10 17.5 19 7" /></svg>
+            </button>
+            <canvas id="island-field" class="island-field" aria-hidden="true"></canvas>
+          </div>
+
+          <p class="island-status" id="island-status" role="status" aria-live="off">Listening</p>
+        </div>
+      </section>
+
+      <section id="how" class="section how" aria-labelledby="how-title">
+        <div class="section-head">
+          <h2 id="how-title">How it works</h2>
+        </div>
+        <ol class="steps">
+          <li>
+            <span class="step-key"><kbd class="key">fn</kbd></span>
+            <h3>Hold fn</h3>
+            <p>Recording starts and the island appears. Prefer hands-free? Tap fn twice to start, once to stop.</p>
+          </li>
+          <li>
+            <span class="step-key"><span class="mini-dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></span>
+            <h3>Speak</h3>
+            <p>Talk normally. The ring around the send button shows the time used; recordings stop on their own at two minutes.</p>
+          </li>
+          <li>
+            <span class="step-key"><kbd class="key key-wide">Return</kbd></span>
+            <h3>Release</h3>
+            <p>Parakeet transcribes on your Mac, the text is pasted into the frontmost app, and Return is pressed for you if Auto-Enter is on.</p>
+          </li>
+        </ol>
+        <p class="how-note">Press <kbd>esc</kbd> to cancel. Toggle Auto-Enter from the menu bar with <kbd>⇧⌘E</kbd>.</p>
+      </section>
+
+      <section id="features" class="section features" aria-labelledby="features-title">
+        <div class="section-head">
+          <h2 id="features-title">What you get</h2>
+        </div>
+        <div class="grid">
+          <article class="card">
+            <svg class="card-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="3" /><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3" /></svg>
+            <h3>On device</h3>
+            <p>NVIDIA Parakeet TDT 0.6B v3 runs locally through FluidAudio on CoreML and the Neural Engine. Audio never leaves the Mac.</p>
+          </article>
+          <article class="card">
+            <svg class="card-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4 7v10l8 4 8-4V7z" /><path d="M4 7l8 4 8-4M12 11v10" /></svg>
+            <h3>8 MB app</h3>
+            <p>A native SwiftUI app of about 8 MB. It lives in the menu bar and stays idle until you hold fn.</p>
+          </article>
+          <article class="card">
+            <svg class="card-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 5v7a3 3 0 0 1-3 3H6" /><path d="m10 11-4 4 4 4" /></svg>
+            <h3>Auto-Enter for coding agents</h3>
+            <p>Optionally press Return after pasting, so a spoken prompt goes straight to Claude Code, T3 Code or ChatGPT.</p>
+          </article>
+          <article class="card">
+            <svg class="card-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="14" rx="2.5" /><path d="M8 21h8M7 9h6M7 13h10" /></svg>
+            <h3>Works in any app</h3>
+            <p>Text is pasted into whatever is in front: editors, terminals, browsers, mail, notes.</p>
+          </article>
+          <article class="card">
+            <svg class="card-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M13.5 5l-3 14" /></svg>
+            <h3>Open source</h3>
+            <p>MIT licensed. Read the code, build it with <code>make app</code>, or send a pull request.</p>
+          </article>
+          <article class="card">
+            <svg class="card-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor" stroke="none" /></svg>
+            <h3>Light and dark</h3>
+            <p>The island and settings window follow the system appearance, with the same thermal accent in both.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section closing" aria-labelledby="closing-title">
+        <h2 id="closing-title">Try it on your Mac</h2>
+        <p>Needs macOS 15 or later on Apple silicon, plus Microphone and Accessibility permission. The build is not notarized: the first time, right-click the app and choose Open.</p>
+        <div class="cta">
+          <a class="btn btn-primary" href="https://github.com/taylorle9212/Vocality/releases/latest">Download for Mac</a>
+          <a class="btn btn-secondary" href="https://github.com/taylorle9212/Vocality">View on GitHub</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-row">
+        <a class="brand" href="#top">
+          <img src="/icon.png" alt="" width="22" height="22" />
+          <span>Vocality</span>
+        </a>
+        <nav aria-label="Footer">
+          <a href="https://github.com/taylorle9212/Vocality">GitHub</a>
+          <a href="https://github.com/taylorle9212/Vocality/releases">Releases</a>
+          <a href="https://github.com/taylorle9212/Vocality/blob/main/LICENSE">MIT License</a>
+        </nav>
+      </div>
+      <p class="credits">Parakeet TDT 0.6B v3 by NVIDIA · <a href="https://github.com/FluidInference/FluidAudio">FluidAudio</a></p>
+      <p class="credits renderer" id="renderer-note"></p>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
