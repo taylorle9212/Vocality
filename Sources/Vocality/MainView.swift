@@ -151,11 +151,8 @@ private struct Card<Content: View>: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Theme.card)
-                .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Theme.line, lineWidth: 1))
-        )
+        .glassSurface(RoundedRectangle(cornerRadius: 20, style: .continuous), tint: Theme.card)
+        .overlay(IridescentRim(shape: RoundedRectangle(cornerRadius: 20, style: .continuous), lineWidth: 1, opacity: 0.3))
     }
 }
 
@@ -196,7 +193,7 @@ private struct KeyRow: View {
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
                 .frame(minWidth: 64)
-                .background(RoundedRectangle(cornerRadius: 6).fill(Theme.chip))
+                .glassSurface(Capsule(), tint: Theme.chip)
                 .foregroundStyle(Theme.chipText)
             Text(text).font(.system(size: 13))
         }
