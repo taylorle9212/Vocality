@@ -1,4 +1,4 @@
-// Renders the Vocality app icon (sky-blue "speaking cursor") to an .icns file.
+// Renders the Vocality app icon (tech-purple "speaking cursor") to an .icns file.
 // Usage: swift scripts/make-icon.swift <output.icns>
 import AppKit
 
@@ -41,14 +41,14 @@ func render(_ px: Int) -> Data {
     ctx.addPath(shape)
     ctx.clip()
 
-    // Translucent blue glass body.
+    // Translucent violet-to-indigo glass body.
     ctx.drawLinearGradient(
-        gradient([(color(0x9C, 0xD3, 0xFF, 0.72), 0), (color(0x5A, 0xA6, 0xF8, 0.76), 0.5), (color(0x2F, 0x86, 0xF0, 0.82), 1)]),
+        gradient([(color(0xA7, 0x8B, 0xFA, 0.72), 0), (color(0x7C, 0x3A, 0xED, 0.76), 0.5), (color(0x4F, 0x46, 0xE5, 0.82), 1)]),
         start: CGPoint(x: tile.minX, y: tile.maxY), end: CGPoint(x: tile.maxX, y: tile.minY), options: [])
 
     // Deeper tint toward the bottom for depth.
     ctx.drawLinearGradient(
-        gradient([(color(0x0A, 0x3C, 0x96, 0), 0), (color(0x0A, 0x3C, 0x96, 0), 0.45), (color(0x0A, 0x3C, 0x96, 0.28), 1)]),
+        gradient([(color(0x2E, 0x10, 0x65, 0), 0), (color(0x2E, 0x10, 0x65, 0), 0.45), (color(0x2E, 0x10, 0x65, 0.28), 1)]),
         start: CGPoint(x: tile.midX, y: tile.maxY), end: CGPoint(x: tile.midX, y: tile.minY), options: [])
 
     // Soft elliptical sheen near the top (no hard edge).
@@ -63,7 +63,7 @@ func render(_ px: Int) -> Data {
     // Inner shadow hugging the lower edge.
     ctx.saveGState()
     ctx.addRect(canvas.insetBy(dx: -200 * s, dy: -200 * s)); ctx.addPath(shape)
-    ctx.setShadow(offset: CGSize(width: 0, height: 14 * s), blur: 40 * s, color: color(0x08, 0x2A, 0x70, 0.35))
+    ctx.setShadow(offset: CGSize(width: 0, height: 14 * s), blur: 40 * s, color: color(0x2E, 0x10, 0x65, 0.35))
     ctx.setFillColor(NSColor.black.cgColor)
     ctx.fillPath(using: .evenOdd)
     ctx.restoreGState()
@@ -86,11 +86,11 @@ func render(_ px: Int) -> Data {
     rim(width: 4.5 * s, stops: [(NSColor(white: 1, alpha: 0.95).cgColor, 0), (NSColor(white: 1, alpha: 0.3).cgColor, 0.35), (NSColor(white: 1, alpha: 0.03).cgColor, 1)])
 
     // Glyph from the 200x200 design, mapped into the tile (y flipped),
-    // drawn in one layer with a soft blue glow so it sits above the glass.
+    // drawn in one layer with a soft violet glow so it sits above the glass.
     let k = tile.width / 200
     func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: tile.minX + x * k, y: tile.maxY - y * k) }
     ctx.saveGState()
-    ctx.setShadow(offset: CGSize(width: 0, height: -10 * s), blur: 30 * s, color: color(0x0B, 0x4C, 0xC0, 0.55))
+    ctx.setShadow(offset: CGSize(width: 0, height: -10 * s), blur: 30 * s, color: color(0xC4, 0xB5, 0xFD, 0.6))
     ctx.beginTransparencyLayer(auxiliaryInfo: nil)
     ctx.setLineCap(.round)
     ctx.setStrokeColor(NSColor.white.cgColor)
