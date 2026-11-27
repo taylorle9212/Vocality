@@ -6,6 +6,7 @@ import "./styles.css";
 import { clock, frameLoop, init } from "vgpu";
 
 import { createCpuField } from "./cpu-field";
+import { createHeatField, createStoryGlow, type HeatField, type StoryGlow } from "./effects";
 import type { DotField, FieldConfig, Layout } from "./field";
 import { createGpuField, type GpuField } from "./gpu-field";
 import { createTimeline, type Envelope } from "./timeline";
@@ -60,6 +61,27 @@ const typed = $("typed");
 const returnKey = $("return-key");
 const ringProgress = $<SVGCircleElement & HTMLElement>("ring-progress");
 const rendererNote = $("renderer-note");
+const glowCanvas = $<HTMLCanvasElement>("story-glow");
+const heatCanvas = $<HTMLCanvasElement>("heat-field");
+
+/** How warm the story glow should be for a dictation moment. */
+function warmthFor(env: Envelope): number {
+  switch (env.phase) {
+    case "listening":
+      return 0.15 + 0.45 * env.progress + 0.4 * env.level;
+    case "refining":
+      return 0.85;
+    case "sending":
+      return 0.7;
+    case "sent":
+      return 0.25;
+  }
+}
+
+/** Pauses an effect while its canvas is off screen. */
+function watchActive(canvas: HTMLCanvasElement, target: { active: boolean }) {
+  new IntersectionObserver(([entry]) => (target.active = Boolean(entry?.isIntersecting)), { threshold: 0 }).observe(canvas);
+}
 
 const heroTimeline = createTimeline({ listen: 6.5, refine: 1.8, send: 1.2, rest: 1.5, seed: 2 });
 /** The hero never condenses or sends: the simulated voice only modulates the dots' energy. */
@@ -93,8 +115,6 @@ function storyProgress(): number {
   const r = track.getBoundingClientRect();
   const span = Math.max(1, r.height - window.innerHeight);
   const p = Math.min(1, Math.max(0, -r.top / span));
-  const pinned = r.top <= 0 && r.bottom >= window.innerHeight ? 1 : 0;
-  root.style.setProperty("--pin", String(pinned * smoothstep(0, 0.08, p) * (1 - smoothstep(0.92, 1, p))));
   root.style.setProperty("--enter", String(smoothstep(-0.6, 0, -r.top / window.innerHeight)));
   return p;
 }
@@ -168,7 +188,7 @@ function watchVisibility(canvas: HTMLCanvasElement, field: DotField) {
   new IntersectionObserver(([entry]) => field.setActive(Boolean(entry?.isIntersecting)), { threshold: 0 }).observe(canvas);
 }
 
-function watchPointer(canvas: HTMLCanvasElement, field: DotField) {
+function watchPointer(canvas: HTMLCanvasElement, field: { setPointer(point: [number, number] | null): void }) {
   window.addEventListener(
     "pointermove",
     (e) => {
@@ -181,16 +201,29 @@ function watchPointer(canvas: HTMLCanvasElement, field: DotField) {
   window.addEventListener("pointerleave", () => field.setPointer(null));
 }
 
-async function createFields(): Promise<{ hero?: DotField; island?: DotField; gpu: boolean; start: (loop: (dt: number, t: number) => void) => void }> {
+interface Scene {
+  hero?: DotField;
+  island?: DotField;
+  glow?: StoryGlow;
+  heat?: HeatField;
+  gpu: boolean;
+  start: (loop: (dt: number, t: number) => void) => void;
+}
+
+async function createFields(): Promise<Scene> {
   if ("gpu" in navigator) {
     try {
       const gpu = await init();
       const hero = heroCanvas ? await createGpuField(gpu, heroCanvas, heroConfig) : undefined;
       const isl = islandCanvas ? await createGpuField(gpu, islandCanvas, islandConfig) : undefined;
+      const glow = glowCanvas ? await createStoryGlow(gpu, glowCanvas) : undefined;
+      const heat = heatCanvas ? await createHeatField(gpu, heatCanvas) : undefined;
       const time = clock(gpu);
       return {
         hero,
         island: isl,
+        glow,
+        heat,
         gpu: true,
         start(loop) {
           frameLoop(gpu, (f) => {
@@ -205,6 +238,8 @@ async function createFields(): Promise<{ hero?: DotField; island?: DotField; gpu
               [isl, env],
             ];
             for (const [field, e] of fields) if (field?.active) field.encode(f, e, dt, t);
+            if (glow?.active) glow.encode(f, t, warmthFor(env));
+            if (heat?.active) heat.encode(f, t);
             loop(dt, t);
           });
         },
@@ -240,7 +275,7 @@ async function createFields(): Promise<{ hero?: DotField; island?: DotField; gpu
 
 async function main() {
   watchReveals();
-  const { hero, island: islandField, gpu, start } = await createFields();
+  const { hero, island: islandField, glow, heat, gpu, start } = await createFields();
   if (rendererNote) {
     rendererNote.textContent = gpu
       ? "Animations render with WebGPU via vgpu."
@@ -250,11 +285,21 @@ async function main() {
   const applyDark = () => {
     hero?.setDark(darkQuery.matches);
     islandField?.setDark(darkQuery.matches);
+    glow?.setDark(darkQuery.matches);
+    heat?.setDark(darkQuery.matches);
   };
   applyDark();
   darkQuery.addEventListener("change", applyDark);
 
-  if (heroCanvas && hero) watchPointer(heroCanvas, hero);
+  if (heroCanvas && hero) {
+    watchVisibility(heroCanvas, hero);
+    watchPointer(heroCanvas, hero);
+  }
+  if (glowCanvas && glow) watchActive(glowCanvas, glow);
+  if (heatCanvas && heat) {
+    watchActive(heatCanvas, heat);
+    watchPointer(heatCanvas, heat);
+  }
   if (islandCanvas && islandField) watchVisibility(islandCanvas, islandField);
 
   if (reducedMotion.matches) {

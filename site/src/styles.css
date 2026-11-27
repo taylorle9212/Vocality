@@ -780,15 +780,7 @@ h3 {
   }
 }
 
-/* The hero dot field is a fixed backdrop for the whole page: it stays on screen while scrolling. */
-#hero-field {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: -2;
-  pointer-events: none;
-}
+
 
 /* Scroll story: the demo pins while scrolling scrubs listening → refining → sent. */
 .scrolly-track {
@@ -839,11 +831,7 @@ h3 {
   opacity: 1;
   transform: none;
 }
-/* The page backdrop dims while the story is pinned, so the window is the focus. */
-#hero-field {
-  opacity: calc(1 - 0.65 * var(--pin, 0));
-  transition: opacity 0.2s linear;
-}
+
 
 /* Sections slide in as they enter the viewport. */
 .reveal {
@@ -863,4 +851,35 @@ h3 {
   .scrolly-pin .stage { transform: none; opacity: 1; }
   .reveal { opacity: 1; transform: none; transition: none; }
   .captions li { opacity: 1; transform: none; transition: none; }
+}
+
+/* Story glow: thermal light behind the pinned window. */
+.scrolly-pin {
+  isolation: isolate;
+}
+.story-glow {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Closing: a heat trail follows the cursor across the full width of the section. */
+.closing {
+  position: relative;
+  isolation: isolate;
+  padding-block: 120px;
+}
+.heat-field {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 100vw;
+  height: 100%;
+  transform: translateX(-50%);
+  z-index: -1;
+  pointer-events: none;
 }
