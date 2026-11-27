@@ -7,6 +7,7 @@ import SwiftUI
 enum Snapshot {
     static func run(outputDirectory: URL) {
         try? FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
+        GlassSupport.forceFallback = true
         let model = AppModel(snapshot: true)
         let wave: [CGFloat] = (0..<22).map { (i: Int) -> CGFloat in
             let shape: Double = abs(sin(Double(i) * 0.7))
@@ -14,11 +15,15 @@ enum Snapshot {
             return CGFloat(0.15 + 0.7 * shape * variation)
         }
 
+        // Any installed app works as the sample "sent to" target.
+        let sampleAppIcon = ["/Applications/T3 Code (Beta).app", "/System/Applications/Notes.app"]
+            .first { FileManager.default.fileExists(atPath: $0) }
         let overlays: [(String, AnyView)] = [
             ("overlay-recording", AnyView(RecorderOverlay.snapshotView(.recording, levels: wave, charge: 0.65))),
             ("overlay-recording-noautosend", AnyView(RecorderOverlay.snapshotView(.recording, autoSend: false, levels: wave))),
             ("overlay-transcribing", AnyView(RecorderOverlay.snapshotView(.transcribing))),
-            ("overlay-sent", AnyView(RecorderOverlay.snapshotView(.sent("⏎")))),
+            ("overlay-resting", AnyView(RecorderOverlay.snapshotView(.recording, expanded: false))),
+            ("overlay-sent", AnyView(RecorderOverlay.snapshotView(.sent("⏎", app: "T3 Code", iconPath: sampleAppIcon)))),
             ("overlay-pasted", AnyView(RecorderOverlay.snapshotView(.pasted, autoSend: false))),
             ("overlay-error", AnyView(RecorderOverlay.snapshotView(.error("No microphone input is available.")))),
         ]
@@ -26,7 +31,7 @@ enum Snapshot {
         for (scheme, appearanceName) in [("light", NSAppearance.Name.aqua), ("dark", .darkAqua)] {
             let colorScheme: ColorScheme = scheme == "dark" ? .dark : .light
             NSAppearance(named: appearanceName)!.performAsCurrentDrawingAppearance {
-                let backdrop = scheme == "dark" ? Color(hex: 0x10151C) : Color(hex: 0xF5F9FF)
+                let backdrop = scheme == "dark" ? Color(hex: 0x050608) : Color(hex: 0xF5F9FF)
                 let window = MainView.Content()
                     .environmentObject(model)
                     .environment(\.colorScheme, colorScheme)

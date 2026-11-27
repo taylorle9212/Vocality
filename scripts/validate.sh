@@ -65,7 +65,7 @@ for line in (out / "results.tsv").read_text().splitlines():
 
 e = html.escape
 def img(name, alt): return f'<figure><img src="{name}" alt="{e(alt)}"><figcaption>{e(alt)}</figcaption></figure>'
-states = [("recording", "Recording, send armed"), ("recording-noautosend", "Recording, no auto-send"),
+states = [("resting", "Resting capsule (opening)"), ("recording", "Recording, send armed"), ("recording-noautosend", "Recording, no auto-send"),
           ("transcribing", "Transcribing"), ("sent", "Sent"), ("pasted", "Pasted"), ("error", "Error")]
 test_rows = "".join(
     f'<tr><td><span class="badge {"pass" if ok else "fail"}">{"Pass" if ok else "Fail"}</span></td>'
@@ -124,7 +124,7 @@ figcaption {{ font-size:13px; color:var(--muted); margin-top:8px; }}
 <h2>Recorder, dark</h2>
 <div class="grid">{"".join(img(f"overlay-{k}-dark.png", v) for k, v in states)}</div>
 <h2>Settings window</h2>
-<p class="muted">System switches and pickers can't be drawn offscreen and appear as placeholders here.</p>
+<p class="muted">System switches and pickers can't be drawn offscreen and appear as placeholders. Liquid Glass and the window blur need the live desktop behind them, so these renders show the frosted fallback.</p>
 <div class="grid">{img("window-light.png", "Light")}{img("window-dark.png", "Dark")}</div>
 </main>"""
 (out / "report.html").write_text(page)
