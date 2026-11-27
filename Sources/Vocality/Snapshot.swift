@@ -31,12 +31,12 @@ enum Snapshot {
         for (scheme, appearanceName) in [("light", NSAppearance.Name.aqua), ("dark", .darkAqua)] {
             let colorScheme: ColorScheme = scheme == "dark" ? .dark : .light
             NSAppearance(named: appearanceName)!.performAsCurrentDrawingAppearance {
-                let backdrop = scheme == "dark" ? Color(hex: 0x050608) : Color(hex: 0xF5F9FF)
+                let backdrop = scheme == "dark" ? Color(hex: 0x07050D) : Color(hex: 0xF7F5FF)
                 let window = MainView.Content()
                     .environmentObject(model)
-                    .environment(\.colorScheme, colorScheme)
                     .frame(width: 560)
-                    .background(backdrop)
+                    .background(ZStack { backdrop; WindowBackdrop() })
+                    .environment(\.colorScheme, colorScheme)
                 write(window, to: outputDirectory.appendingPathComponent("window-\(scheme).png"))
 
                 for (name, view) in overlays {

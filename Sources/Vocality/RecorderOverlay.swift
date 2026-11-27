@@ -149,10 +149,10 @@ private enum Island {
     static let text = Color.white
     static let secondary = Color.white.opacity(0.6)
     static let edge = Color.white.opacity(0.09)
-    static let low = Color(hex: 0x2E5A8F)
-    static let mid = Color(hex: 0x4DA3FF)
-    static let high = Color(hex: 0x9AD2FF)
-    static let send = Color(hex: 0x2F78D8)
+    static let low = Color(hex: 0x4C3A8F)
+    static let mid = Color(hex: 0x8B5CF6)
+    static let high = Color(hex: 0xC4B5FD)
+    static let send = Color(hex: 0x7C3AED)
 }
 
 /// Bouncy, like Dynamic Island.
@@ -379,7 +379,7 @@ private struct LaunchPad: View {
         return false
     }
 
-    /// Faint sky glass while armed; solid blue once sent.
+    /// Faint violet glass while armed; solid violet once sent.
     private var padTint: Color {
         if isSent || isChecked { return Island.send }
         if isError { return Color(hex: 0xFB923C).opacity(0.2) }

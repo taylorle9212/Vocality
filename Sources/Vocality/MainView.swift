@@ -4,7 +4,7 @@ struct MainView: View {
     var body: some View {
         ScrollView { Content() }
             .scrollContentBackground(.hidden)
-            .background(Theme.windowTint)
+            .background(WindowBackdrop())
             .frame(minWidth: 460, minHeight: 480)
     }
 }
@@ -46,10 +46,10 @@ extension MainView {
         private var statusChip: some View {
             let (text, color): (String, Color) = {
                 switch app.modelState {
-                case .ready: return app.isReady ? ("Ready", Theme.sky600) : ("Setup needed", Theme.warning)
-                case .downloading(let p): return ("Downloading \(Int(p * 100))%", Theme.sky500)
-                case .loading: return ("Loading", Theme.sky500)
-                case .notDownloaded: return ("Starting", Theme.sky500)
+                case .ready: return app.isReady ? ("Ready", Theme.accent600) : ("Setup needed", Theme.warning)
+                case .downloading(let p): return ("Downloading \(Int(p * 100))%", Theme.accent500)
+                case .loading: return ("Loading", Theme.accent500)
+                case .notDownloaded: return ("Starting", Theme.accent500)
                 case .failed: return ("Model error", Theme.warning)
                 }
             }()
@@ -59,7 +59,7 @@ extension MainView {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .glassSurface(Capsule(), tint: Theme.sky500.opacity(0.18))
+            .glassSurface(Capsule(), tint: Theme.accent500.opacity(0.18))
         }
 
         // MARK: Setup
@@ -144,7 +144,7 @@ private struct Card<Content: View>: View {
                 Text(title).font(.system(size: 13, weight: .bold)).foregroundStyle(Theme.slate)
                 Spacer()
                 if let trailing {
-                    Button(trailing.0, action: trailing.1).buttonStyle(.borderless).foregroundStyle(Theme.sky600)
+                    Button(trailing.0, action: trailing.1).buttonStyle(.borderless).foregroundStyle(Theme.accent600)
                 }
             }
             content
@@ -169,7 +169,7 @@ private struct SetupRow: View {
         HStack(spacing: 12) {
             Image(systemName: done ? "checkmark.circle.fill" : "circle")
                 .font(.system(size: 18))
-                .foregroundStyle(done ? Theme.sky600 : Theme.sky300)
+                .foregroundStyle(done ? Theme.accent600 : Theme.accent300)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.system(size: 13, weight: .semibold))
                 Text(detail).font(.system(size: 12)).foregroundStyle(Theme.slate)

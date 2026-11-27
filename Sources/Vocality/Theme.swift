@@ -1,30 +1,51 @@
 import AppKit
 import SwiftUI
 
-/// Light-blue palette that follows the system light/dark appearance.
+/// Tech-purple palette that follows the system light/dark appearance.
 enum Theme {
-    static let background = Color(light: 0xF5F9FF, dark: 0x050608)
-    /// Tint laid over the translucent window: pale blue mist, or rich black.
-    static let windowTint = Color(light: 0xF5F9FF, dark: 0x030405, lightAlpha: 0.72, darkAlpha: 0.86)
-    static let card = Color(light: 0xFFFFFF, dark: 0x0E1116, lightAlpha: 0.78, darkAlpha: 0.78)
-    static let line = Color(light: 0xD8E6FA, dark: 0x1C232D)
-    static let ink = Color(light: 0x0E1A2B, dark: 0xE8EEF6)
-    static let slate = Color(light: 0x4A5B73, dark: 0x9AA8BB)
-    static let chip = Color(light: 0xE3F0FF, dark: 0x1D2C40)
-    static let chipText = Color(light: 0x134C99, dark: 0xA9D2FF)
+    static let background = Color(light: 0xF7F5FF, dark: 0x07050D)
+    static let card = Color(light: 0xFFFFFF, dark: 0x0F0B18, lightAlpha: 0.74, darkAlpha: 0.72)
+    static let line = Color(light: 0xE4DCFB, dark: 0x251C3A)
+    static let ink = Color(light: 0x1A1030, dark: 0xEEEAF8)
+    static let slate = Color(light: 0x5B5274, dark: 0xA79FBF)
+    static let chip = Color(light: 0xEEE8FF, dark: 0x22163D)
+    static let chipText = Color(light: 0x4C1D95, dark: 0xD8CCFF)
 
-    static let sky300 = Color(light: 0xA9D2FF, dark: 0x3A6EA8)
-    static let sky500 = Color(light: 0x4DA3FF, dark: 0x5DAEFF)
-    static let sky600 = Color(light: 0x2F86F0, dark: 0x7CC0FF)
+    static let accent300 = Color(light: 0xC4B5FD, dark: 0x5B3FA6)
+    static let accent500 = Color(light: 0x8B5CF6, dark: 0xA78BFA)
+    static let accent600 = Color(light: 0x7C3AED, dark: 0xC4B5FD)
     /// Buttons and switches. White text on it passes 4.5:1 in both appearances.
-    static let action = Color(light: 0x1A63C7, dark: 0x2F78D8)
+    static let action = Color(light: 0x6D28D9, dark: 0x7C3AED)
     static let warning = Color(light: 0xC2410C, dark: 0xFB923C)
 
+    /// Violet to indigo, for the logo and brand surfaces.
     static let iconGradient = LinearGradient(
-        colors: [Color(hex: 0x8CCBFF), Color(hex: 0x2F86F0)],
+        colors: [Color(hex: 0xA78BFA), Color(hex: 0x7C3AED), Color(hex: 0x4F46E5)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
+}
+
+/// The window backdrop: a soft purple gradient over the translucent window material.
+struct WindowBackdrop: View {
+    var body: some View {
+        ZStack {
+            LinearGradient(
+                colors: [
+                    Color(light: 0xEFE7FF, dark: 0x0B0716, lightAlpha: 0.82, darkAlpha: 0.9),
+                    Color(light: 0xF7F5FF, dark: 0x05040A, lightAlpha: 0.82, darkAlpha: 0.92),
+                ],
+                startPoint: .top,
+                endPoint: .bottom)
+            RadialGradient(
+                colors: [Color(light: 0xA78BFA, dark: 0x7C3AED, lightAlpha: 0.32, darkAlpha: 0.34), .clear],
+                center: .topLeading, startRadius: 0, endRadius: 520)
+            RadialGradient(
+                colors: [Color(light: 0x818CF8, dark: 0x4F46E5, lightAlpha: 0.2, darkAlpha: 0.22), .clear],
+                center: .bottomTrailing, startRadius: 0, endRadius: 480)
+        }
+        .ignoresSafeArea()
+    }
 }
 
 extension Color {
