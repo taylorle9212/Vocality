@@ -3,9 +3,11 @@ import SwiftUI
 
 /// Light-blue palette that follows the system light/dark appearance.
 enum Theme {
-    static let background = Color(light: 0xF5F9FF, dark: 0x10151C)
-    static let card = Color(light: 0xFFFFFF, dark: 0x18202A)
-    static let line = Color(light: 0xD8E6FA, dark: 0x2A3646)
+    static let background = Color(light: 0xF5F9FF, dark: 0x050608)
+    /// Tint laid over the translucent window: pale blue mist, or rich black.
+    static let windowTint = Color(light: 0xF5F9FF, dark: 0x030405, lightAlpha: 0.72, darkAlpha: 0.86)
+    static let card = Color(light: 0xFFFFFF, dark: 0x0E1116, lightAlpha: 0.78, darkAlpha: 0.78)
+    static let line = Color(light: 0xD8E6FA, dark: 0x1C232D)
     static let ink = Color(light: 0x0E1A2B, dark: 0xE8EEF6)
     static let slate = Color(light: 0x4A5B73, dark: 0x9AA8BB)
     static let chip = Color(light: 0xE3F0FF, dark: 0x1D2C40)
@@ -30,9 +32,11 @@ extension Color {
         self.init(nsColor: NSColor(hex: hex))
     }
 
-    init(light: UInt32, dark: UInt32) {
+    init(light: UInt32, dark: UInt32, lightAlpha: CGFloat = 1, darkAlpha: CGFloat = 1) {
         self.init(nsColor: NSColor(name: nil) { appearance in
-            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? NSColor(hex: dark) : NSColor(hex: light)
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+                ? NSColor(hex: dark).withAlphaComponent(darkAlpha)
+                : NSColor(hex: light).withAlphaComponent(lightAlpha)
         })
     }
 }

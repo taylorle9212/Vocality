@@ -3,8 +3,9 @@ import SwiftUI
 struct MainView: View {
     var body: some View {
         ScrollView { Content() }
-            .background(Theme.background)
-            .frame(minWidth: 460, minHeight: 520)
+            .scrollContentBackground(.hidden)
+            .background(Theme.windowTint)
+            .frame(minWidth: 460, minHeight: 480)
     }
 }
 
@@ -24,12 +25,10 @@ extension MainView {
                 if !app.isReady { setupCard }
                 shortcutsCard
                 settingsCard
-                historyCard
             }
             .padding(24)
             .frame(maxWidth: 640)
             .frame(maxWidth: .infinity)
-            .background(Theme.background)
             .foregroundStyle(Theme.ink)
         }
 
@@ -60,7 +59,7 @@ extension MainView {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(Capsule().fill(Theme.chip))
+            .glassSurface(Capsule(), tint: Theme.sky500.opacity(0.18))
         }
 
         // MARK: Setup
@@ -129,37 +128,6 @@ extension MainView {
             }
             .tint(Theme.action)
         }
-
-        // MARK: History
-
-        private var historyCard: some View {
-            Card(title: "Recent", trailing: app.history.isEmpty ? nil : ("Clear", { app.clearHistory() })) {
-                if app.history.isEmpty {
-                    Text("No dictations yet.").font(.system(size: 13)).foregroundStyle(Theme.slate)
-                } else {
-                    ForEach(app.history.prefix(15)) { item in
-                        HStack(alignment: .top, spacing: 10) {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(item.text).font(.system(size: 13)).textSelection(.enabled)
-                                (Text(item.date, style: .relative) + Text(item.sent ? " ago · sent" : " ago"))
-                                    .font(.system(size: 11)).foregroundStyle(Theme.slate)
-                            }
-                            Spacer()
-                            Button {
-                                app.copy(item)
-                            } label: {
-                                Image(systemName: "doc.on.doc")
-                            }
-                            .buttonStyle(.borderless)
-                            .foregroundStyle(Theme.sky600)
-                            .help("Copy")
-                            .accessibilityLabel("Copy")
-                        }
-                        if item.id != app.history.prefix(15).last?.id { Divider().overlay(Theme.line) }
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -209,7 +177,7 @@ private struct SetupRow: View {
             Spacer()
             if !done, let action {
                 Button(action.0, action: action.1)
-                    .buttonStyle(.borderedProminent)
+                    .glassProminentButton()
                     .tint(Theme.action)
                     .controlSize(.small)
             }
