@@ -28,16 +28,22 @@ final class RecorderOverlay {
 
         var lastLevel: CGFloat { levels.last ?? 0 }
 
+        /// Slow volume envelope (0...1, from decibels): rises quickly, falls slowly.
+        @Published var volume: CGFloat = 0
+
         func push(level: Float) {
             smoothed = smoothed * 0.55 + CGFloat(level) * 0.45
             levels.removeFirst()
             levels.append(smoothed)
+            let target = CGFloat(level)
+            volume += (target - volume) * (target > volume ? 0.2 : 0.06)
         }
 
         func reset() {
             levels = Array(repeating: 0, count: levels.count)
             charge = 0
             smoothed = 0
+            volume = 0
         }
     }
 
@@ -207,7 +213,7 @@ private struct IslandView: View {
     @ViewBuilder private var content: some View {
         switch model.mode {
         case .recording:
-            DotField3D(levels: model.levels, animated: !model.settled)
+            ParticleField(volume: model.volume, animated: !model.settled)
         case .transcribing:
             Text("Transcribing").font(.system(size: 13, weight: .semibold)).foregroundStyle(Island.text)
         case .sent(let glyph, let app, let iconPath):
@@ -396,81 +402,90 @@ enum Thermal {
     }
 }
 
-/// A 3D field of tiny dots: a sheet in perspective that ripples with your voice.
-/// Louder speech raises waves that roll back into depth; the sheet sways slowly so it reads as 3D.
-/// Drawn every frame with Canvas, rendered on the GPU (Metal) via drawingGroup.
-private struct DotField3D: View {
-    let levels: [CGFloat]
+/// A field of tiny round dots driven by volume.
+/// Each dot has a fixed home, size and drift path. Louder speech shows more dots (in a fixed
+/// order, each fading in) and makes every dot drift further. Drawn on the GPU every frame.
+private struct ParticleField: View {
+    let volume: CGFloat
     var animated = true
-    private let columns = 24
-    private let rows = 6
 
-    private struct Dot {
-        let x: CGFloat, y: CGFloat, depth: CGFloat, size: CGFloat, heat: CGFloat
+    private struct Particle {
+        let x: CGFloat, y: CGFloat      // home, 0...1
+        let size: CGFloat
+        let phaseX: Double, phaseY: Double
+        let speedX: Double, speedY: Double
+        let warmth: CGFloat             // small per-dot color variation
     }
+
+    private static let count = 90
+    /// Minimum dots shown while listening in silence.
+    private static let resting = 5
+
+    /// Deterministic, evenly spread particles (a jittered grid, shuffled into a fixed reveal order).
+    private static let particles: [Particle] = {
+        var rng = SeededGenerator(seed: 0x5EED)
+        let cols = 18, rows = 5
+        var list: [Particle] = []
+        for r in 0..<rows {
+            for c in 0..<cols {
+                list.append(Particle(
+                    x: (CGFloat(c) + 0.5 + CGFloat.random(in: -0.35...0.35, using: &rng)) / CGFloat(cols),
+                    y: (CGFloat(r) + 0.5 + CGFloat.random(in: -0.35...0.35, using: &rng)) / CGFloat(rows),
+                    size: CGFloat.random(in: 1.6...2.8, using: &rng),
+                    phaseX: Double.random(in: 0...(2 * .pi), using: &rng),
+                    phaseY: Double.random(in: 0...(2 * .pi), using: &rng),
+                    speedX: Double.random(in: 0.5...1.3, using: &rng),
+                    speedY: Double.random(in: 0.5...1.3, using: &rng),
+                    warmth: CGFloat.random(in: -0.08...0.08, using: &rng)))
+            }
+        }
+        list.shuffle(using: &rng)
+        return list
+    }()
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1 / 60, paused: !animated)) { context in
-            let time = animated ? context.date.timeIntervalSinceReferenceDate : 2.0
+            let time = animated ? context.date.timeIntervalSinceReferenceDate : 3.0
             Canvas { gc, size in draw(in: &gc, size: size, time: time) }
         }
-        .frame(width: 190, height: 40)
+        .frame(width: 190, height: 36)
         .drawingGroup()
         .accessibilityHidden(true)
     }
 
     private func draw(in gc: inout GraphicsContext, size: CGSize, time: Double) {
-        let yaw = sin(time * 0.45) * 0.32          // slow sway
-        let pitch = 0.82                             // looking down onto the sheet
-        let (cy, sy) = (cos(yaw), sin(yaw))
-        let (cp, sp) = (cos(pitch), sin(pitch))
-        var dots: [Dot] = []
-        dots.reserveCapacity(columns * rows)
+        let v = max(0, min(1, volume))
+        // Map volume to how many dots are visible; the last one fades in.
+        let visible = CGFloat(Self.resting) + CGFloat(Self.count - Self.resting) * pow(v, 0.85)
+        // Drift grows with volume: nearly still when quiet, lively when loud.
+        let drift = 0.8 + 6.5 * v
+        let heatBase = 0.3 + 0.5 * v
 
-        for r in 0..<rows {
-            let z = CGFloat(r) / CGFloat(rows - 1) * 2 - 1          // -1 (front) ... 1 (back)
-            for c in 0..<columns {
-                let x = CGFloat(c) / CGFloat(columns - 1) * 2 - 1
-                // Waves travel back into depth: rows further back show slightly older audio.
-                let level = sample(column: c, delay: r)
-                let ripple = 0.06 * sin(time * 2.6 - Double(c) * 0.42 - Double(r) * 0.7)
-                let height = level * (1 - 0.35 * (z + 1) / 2) * 0.9 + CGFloat(ripple)
-
-                // Rotate (yaw), tilt (pitch), project with perspective.
-                let rx = x * cy + z * sy
-                let rz = -x * sy + z * cy
-                let ty = height * cp - rz * sp
-                let tz = height * sp + rz * cp
-                let perspective = 2.6 / (2.6 + tz)
-                let px = size.width / 2 + rx * perspective * size.width * 0.46
-                let py = size.height / 2 - ty * perspective * size.height * 0.42
-                let near = (1 - (tz + 1) / 2)
-                dots.append(Dot(x: px, y: py, depth: tz,
-                                size: 1.4 + 1.2 * perspective * (0.7 + 0.3 * near),
-                                heat: min(0.86, 0.3 + max(0, height) * 0.95)))
-            }
-        }
-
-        // Far dots first so near dots sit on top.
-        for dot in dots.sorted(by: { $0.depth > $1.depth }) {
-            let fade = 0.35 + 0.65 * Double(1 - (dot.depth + 1) / 2)
-            let rect = CGRect(x: dot.x - dot.size / 2, y: dot.y - dot.size / 2, width: dot.size, height: dot.size)
-            gc.fill(Path(ellipseIn: rect), with: .color(Thermal.color(dot.heat).opacity(fade)))
+        for (i, p) in Self.particles.enumerated() {
+            let reveal = min(1, max(0, visible - CGFloat(i)))
+            guard reveal > 0.01 else { break }
+            let dx = CGFloat(sin(time * p.speedX + p.phaseX)) * drift
+            let dy = CGFloat(cos(time * p.speedY + p.phaseY)) * drift * 0.6
+            let x = p.x * size.width + dx
+            let y = p.y * size.height + dy
+            let s = p.size * (0.85 + 0.3 * v)
+            let rect = CGRect(x: x - s / 2, y: y - s / 2, width: s, height: s)
+            let heat = min(0.86, max(0.1, heatBase + p.warmth))
+            gc.fill(Path(ellipseIn: rect), with: .color(Thermal.color(heat).opacity(Double(reveal) * 0.92)))
         }
     }
+}
 
-    /// Audio level for a column, `delay` steps older for rows further back.
-    private func sample(column: Int, delay: Int) -> CGFloat {
-        let count = levels.count
-        let position = CGFloat(column) / CGFloat(columns - 1) * CGFloat(count - 1) - CGFloat(delay) * 0.8
-        let p = max(0, min(CGFloat(count - 1), position))
-        let i = Int(p)
-        let next = min(i + 1, count - 1)
-        let t = p - CGFloat(i)
-        let here = levels[i] * (1 - t) + levels[next] * t
-        // Blend with neighbours so the surface is smooth, not jagged.
-        let around = (levels[max(0, i - 1)] + levels[min(count - 1, next + 1)]) / 2
-        return min(1, (here * 0.6 + around * 0.4) * 1.15)
+/// Small deterministic RNG so the dot layout is the same every launch.
+private struct SeededGenerator: RandomNumberGenerator {
+    var state: UInt64
+    init(seed: UInt64) { state = seed }
+    mutating func next() -> UInt64 {
+        state &+= 0x9E3779B97F4A7C15
+        var z = state
+        z = (z ^ (z >> 30)) &* 0xBF58476D1CE4E5B9
+        z = (z ^ (z >> 27)) &* 0x94D049BB133111EB
+        return z ^ (z >> 31)
     }
 }
 
@@ -486,7 +501,10 @@ extension RecorderOverlay {
         model.autoSend = autoSend
         model.settled = true
         model.visible = true
-        if !levels.isEmpty { model.levels = levels }
+        if !levels.isEmpty {
+            model.levels = levels
+            model.volume = levels.reduce(0, +) / CGFloat(levels.count)
+        }
         model.charge = charge
         return IslandView(model: model).padding(20)
     }

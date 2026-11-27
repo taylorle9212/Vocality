@@ -65,7 +65,7 @@ for line in (out / "results.tsv").read_text().splitlines():
 
 e = html.escape
 def img(name, alt): return f'<figure><img src="{name}" alt="{e(alt)}"><figcaption>{e(alt)}</figcaption></figure>'
-states = [("recording", "Recording, send armed"), ("recording-noautosend", "Recording, no auto-send"),
+states = [("recording-quiet", "Recording, quiet"), ("recording", "Recording, speaking"), ("recording-loud", "Recording, loud"), ("recording-noautosend", "Recording, no auto-send"),
           ("transcribing", "Transcribing"), ("sent", "Sent"), ("pasted", "Pasted"), ("error", "Error")]
 test_rows = "".join(
     f'<tr><td><span class="badge {"pass" if ok else "fail"}">{"Pass" if ok else "Fail"}</span></td>'

@@ -19,7 +19,9 @@ enum Snapshot {
         let sampleAppIcon = ["/Applications/T3 Code (Beta).app", "/System/Applications/Notes.app"]
             .first { FileManager.default.fileExists(atPath: $0) }
         let overlays: [(String, AnyView)] = [
-            ("overlay-recording", AnyView(RecorderOverlay.snapshotView(.recording, levels: wave, charge: 0.65))),
+            ("overlay-recording-quiet", AnyView(RecorderOverlay.snapshotView(.recording, levels: Array(repeating: 0.08, count: 22), charge: 0.1))),
+            ("overlay-recording", AnyView(RecorderOverlay.snapshotView(.recording, levels: wave, charge: 0.4))),
+            ("overlay-recording-loud", AnyView(RecorderOverlay.snapshotView(.recording, levels: Array(repeating: 0.95, count: 22), charge: 0.75))),
             ("overlay-recording-noautosend", AnyView(RecorderOverlay.snapshotView(.recording, autoSend: false, levels: wave))),
             ("overlay-transcribing", AnyView(RecorderOverlay.snapshotView(.transcribing))),
             ("overlay-sent", AnyView(RecorderOverlay.snapshotView(.sent("⏎", app: "T3 Code", iconPath: sampleAppIcon)))),
