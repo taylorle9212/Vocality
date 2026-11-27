@@ -44,9 +44,11 @@ struct VocalityApp: App {
         Window("Vocality", id: "main") {
             MainView()
                 .environmentObject(app)
+                .containerBackground(.ultraThinMaterial, for: .window)
         }
+        .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentMinSize)
-        .defaultSize(width: 560, height: 720)
+        .defaultSize(width: 540, height: 620)
 
         MenuBarExtra {
             MenuContent()
@@ -67,8 +69,8 @@ private struct MenuContent: View {
             .disabled(!app.isReady)
         Toggle("Auto-Enter After Dictation", isOn: $autoEnter)
             .keyboardShortcut("e", modifiers: [.command, .shift])
-        if let last = app.history.first {
-            Button("Copy Last Dictation") { app.copy(last) }
+        if app.lastText != nil {
+            Button("Copy Last Dictation") { app.copyLast() }
         }
         Divider()
         Button("Open Vocality") {

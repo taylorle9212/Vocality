@@ -8,7 +8,6 @@ enum SettingsKey {
     static let playSounds = "playSounds"
     static let trailingSpace = "trailingSpace"
     static let restoreClipboard = "restoreClipboard"
-    static let history = "history"
 }
 
 enum EnterKey: String, CaseIterable, Identifiable {

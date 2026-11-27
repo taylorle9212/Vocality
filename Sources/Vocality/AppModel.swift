@@ -4,13 +4,6 @@ import ApplicationServices
 import ServiceManagement
 import SwiftUI
 
-struct HistoryItem: Codable, Identifiable, Equatable {
-    var id = UUID()
-    var text: String
-    var date: Date
-    var sent: Bool
-}
-
 /// Ties together the hotkey, microphone, speech model and paste.
 @MainActor
 final class AppModel: ObservableObject {
@@ -23,7 +16,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var phase: Phase = .idle
     @Published private(set) var modelState: Transcriber.State = .notDownloaded
     @Published private(set) var level: Float = 0
-    @Published private(set) var history: [HistoryItem] = []
+    /// The last dictation, kept in memory only (for "Copy Last Dictation").
+    @Published private(set) var lastText: String?
     @Published private(set) var micGranted = false
     @Published private(set) var accessibilityGranted = false
     @Published var launchAtLogin = SMAppService.mainApp.status == .enabled {
@@ -41,7 +35,7 @@ final class AppModel: ObservableObject {
     /// `snapshot: true` builds a passive model for offscreen rendering: no hotkey, mic or model loading.
     init(snapshot: Bool = false) {
         Settings.registerDefaults()
-        loadHistory()
+        UserDefaults.standard.removeObject(forKey: "history")  // history was removed in 3.0
         refreshPermissions()
         if snapshot {
             modelState = .ready
@@ -163,13 +157,17 @@ final class AppModel: ObservableObject {
                 }
                 if Settings.trailingSpace { text += " " }
                 // The overlay is click-through and non-activating, so it can stay up while pasting.
+                let target = NSWorkspace.shared.frontmostApplication
                 let sent = await Paster.paste(text)
-                addHistory(text, sent: sent)
+                lastText = text
                 phase = .idle
                 if !Settings.showSentBadge {
                     overlay.hide()
                 } else if sent {
-                    overlay.flash(.sent(Settings.enterKey.glyph))
+                    overlay.flash(.sent(
+                        Settings.enterKey.glyph,
+                        app: target?.localizedName,
+                        iconPath: target?.bundleURL?.path))
                 } else {
                     overlay.flash(.pasted)
                 }
@@ -187,35 +185,12 @@ final class AppModel: ObservableObject {
         overlay.hide()
     }
 
-    // MARK: - History
+    // MARK: - Clipboard
 
-    func copy(_ item: HistoryItem) {
+    func copyLast() {
+        guard let lastText else { return }
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(item.text, forType: .string)
-    }
-
-    func clearHistory() {
-        history.removeAll()
-        saveHistory()
-    }
-
-    private func addHistory(_ text: String, sent: Bool) {
-        history.insert(HistoryItem(text: text, date: Date(), sent: sent), at: 0)
-        if history.count > 50 { history.removeLast(history.count - 50) }
-        saveHistory()
-    }
-
-    private func loadHistory() {
-        guard let data = UserDefaults.standard.data(forKey: SettingsKey.history),
-            let items = try? JSONDecoder().decode([HistoryItem].self, from: data)
-        else { return }
-        history = items
-    }
-
-    private func saveHistory() {
-        if let data = try? JSONEncoder().encode(history) {
-            UserDefaults.standard.set(data, forKey: SettingsKey.history)
-        }
+        NSPasteboard.general.setString(lastText, forType: .string)
     }
 
     // MARK: - Launch at login
