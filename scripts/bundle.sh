@@ -5,8 +5,8 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 OUT_DIR="${1:-$HOME/Downloads}"
-VERSION="2.0.0"
-BUILD="200"
+VERSION="3.0.0"
+BUILD="300"
 APP="build/Vocality.app"
 
 if ! xcodebuild -version >/dev/null 2>&1; then
