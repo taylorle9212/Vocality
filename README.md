@@ -1,5 +1,7 @@
 # Vocality
 
+![Vocality](Resources/banner.png)
+
 On-device dictation for macOS. Hold fn, speak, release: the text is pasted into the frontmost app, and Return can be pressed for you.
 
 Speech recognition uses NVIDIA Parakeet TDT 0.6B v3 through [FluidAudio](https://github.com/FluidInference/FluidAudio) (CoreML, Apple Neural Engine). Audio never leaves the Mac.
